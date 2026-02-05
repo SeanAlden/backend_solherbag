@@ -108,82 +108,15 @@ class AuthController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name'  => 'required|string|max:255',
             'email'      => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'phone'      => 'nullable|string|max:20',
         ]);
 
         if ($validator->fails()) return response()->json($validator->errors(), 422);
 
-        $user->update($request->only('first_name', 'last_name', 'email'));
+        $user->update($request->only('first_name', 'last_name', 'email', 'phone'));
 
         return response()->json(['message' => 'Info profil diperbarui', 'user' => $user]);
     }
-
-    // 2. Update Gambar Profil
-    // public function updateImage(Request $request)
-    // {
-    //     $request->validate(['image' => 'required|image|mimes:jpeg,png,jpg']);
-    //     $user = $request->user();
-
-    //     if ($user->profile_image) {
-    //         Storage::disk('public')->delete($user->profile_image);
-    //     }
-
-    //     $user->profile_image = $request->file('image')->store('profiles', 'public');
-    //     $user->save();
-
-    //     return response()->json(['message' => 'Foto profil diperbarui', 'user' => $user]);
-    // }
-
-    // public function updateImage(Request $request)
-    // {
-    //     $request->validate(['image' => 'required|image|mimes:jpeg,png,jpg|max:2048']);
-    //     $user = $request->user();
-
-    //     // 1. Hapus foto lama di S3 jika ada
-    //     if ($user->profile_image) {
-    //         // Ekstrak nama file dari URL yang tersimpan di database
-    //         $oldPath = str_replace(Storage::disk('s3')->url(''), '', $user->profile_image);
-    //         Storage::disk('s3')->delete($oldPath);
-    //     }
-
-    //     // 2. Simpan gambar baru ke folder 'profiles' di bucket S3
-    //     $path = $request->file('image')->store('profiles', 's3');
-
-    //     // 3. Set visibilitas menjadi public agar bisa diakses browser
-    //     Storage::disk('s3')->setVisibility($path, 'public');
-
-    //     // 4. Simpan URL penuh ke database
-    //     $user->profile_image = Storage::disk('s3')->url($path);
-    //     $user->save();
-
-    //     return response()->json([
-    //         'message' => 'Foto profil diperbarui',
-    //         'user' => $user
-    //     ]);
-    // }
-
-    // public function updateImage(Request $request)
-    // {
-    //     $request->validate(['image' => 'required|image|mimes:jpeg,png,jpg|max:2048']);
-    //     $user = $request->user();
-
-    //     if ($user->profile_image) {
-    //         // Hapus file lama (Gunakan basename untuk mendapatkan path relatif di S3)
-    //         $oldPath = 'profiles/' . basename($user->profile_image);
-    //         Storage::disk('s3')->delete($oldPath);
-    //     }
-
-    //     // Upload dengan visibilitas 'public' dalam satu baris
-    //     $path = $request->file('image')->store('profiles', [
-    //         'disk' => 's3',
-    //         'visibility' => 'public'
-    //     ]);
-
-    //     // Simpan URL penuh ke database
-    //     $user->profile_image = Storage::disk('s3')->url($path);
-    //     $user->save();
-
-    //     return response()->json(['message' => 'Foto profil diperbarui', 'user' => $user]);
-    // }
 
     public function updateImage(Request $request)
     {

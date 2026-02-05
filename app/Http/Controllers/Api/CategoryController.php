@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Validator;
 
 class CategoryController extends Controller
 {
+    public function indexGuest()
+    {
+        return response()->json(Category::all(), 200);
+    }
     public function index()
     {
         return response()->json(Category::all(), 200);
