@@ -3,9 +3,11 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\AddressController; // Pastikan ini di-import
 
 // Route Public
@@ -43,15 +45,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/addresses/{id}', [AddressController::class, 'destroy']);
 
     // Resource lainnya yang sudah dibuat sebelumnya
-    // Route::apiResource('categories', CategoryController::class);
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::post('/categories', [CategoryController::class, 'store']);
     Route::put('/categories/{id}', [CategoryController::class, 'update']);
     Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
-    // Route::apiResource('products', ProductController::class);
 
     // Hanya simpan rute manajemen admin di sini
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{id}', [ProductController::class, 'update']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+
+    Route::get('/carts', [CartController::class, 'index']);
+    Route::post('/carts', [CartController::class, 'store']);
+    Route::put('/carts/{id}', [CartController::class, 'update']);
+    Route::delete('/carts/{id}', [CartController::class, 'destroy']);
+
+    // Checkout (buat transaksi dari cart)
+    Route::post('/checkout', [TransactionController::class, 'checkout']);
+
+    // List transaksi user login
+    Route::get('/transactions', [TransactionController::class, 'index']);
 });

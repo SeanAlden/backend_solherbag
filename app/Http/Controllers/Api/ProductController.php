@@ -27,6 +27,7 @@ class ProductController extends Controller
             'name' => 'required',
             'category_id' => 'required|exists:categories,id',
             'price' => 'required|numeric',
+            'discount_price' => 'nullable|numeric|lt:price',
             'stock' => 'required|integer',
             'image' => 'nullable|image|mimes:jpeg,png,jpg'
         ]);
