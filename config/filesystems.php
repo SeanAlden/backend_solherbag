@@ -58,6 +58,7 @@ return [
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             'throw' => false,
             'report' => false,
+            'visibility' => 'public', // Tambahkan atau pastikan baris ini ada
         ],
 
     ],
@@ -74,7 +75,8 @@ return [
     */
 
     'links' => [
-        public_path('storage') => storage_path('app/public'),
+        // public_path('storage') => storage_path('app/public'),
+        public_path('storage') => storage_path('s3'),
     ],
 
 ];

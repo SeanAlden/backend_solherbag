@@ -11,7 +11,17 @@ use App\Http\Controllers\Api\AddressController; // Pastikan ini di-import
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
-Route::post('/user/update', [AuthController::class, 'updateProfile']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/user/update-info', [AuthController::class, 'updateProfileInfo']);
+    Route::post('/user/update-image', [AuthController::class, 'updateImage']);
+    Route::post('/user/update-password', action: [AuthController::class, 'updatePassword']);
+    Route::get('/admin/users', [AuthController::class, 'getAllUsers']);
+    Route::get('/admin/users/{id}', [AuthController::class, 'getUserDetail']);
+});
+
+// Rute Publik (Bisa diakses tanpa login)
+Route::get('/products', [ProductController::class, 'index']);
+Route::get('/products/{id}', [ProductController::class, 'show']);
 
 // Route Protected (Membutuhkan Login)
 Route::middleware('auth:sanctum')->group(function () {
@@ -28,5 +38,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Resource lainnya yang sudah dibuat sebelumnya
     Route::apiResource('categories', CategoryController::class);
-    Route::apiResource('products', ProductController::class);
+    // Route::apiResource('products', ProductController::class);
+
+    // Hanya simpan rute manajemen admin di sini
+    Route::post('/products', [ProductController::class, 'store']);
+    Route::put('/products/{id}', [ProductController::class, 'update']);
+    Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 });
