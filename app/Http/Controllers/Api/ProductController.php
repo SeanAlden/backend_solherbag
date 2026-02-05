@@ -19,6 +19,7 @@ class ProductController extends Controller
     {
         return response()->json(Product::with('category')->findOrFail($id), 200);
     }
+    
 
     // public function store(Request $request)
     // {
