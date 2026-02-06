@@ -54,6 +54,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{id}', [ProductController::class, 'update']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+    Route::get('/products/inactive', [ProductController::class, 'inactiveProducts']);
+    Route::put('/products/{id}/restore', [ProductController::class, 'restore']);
+    Route::delete('/products/{id}/force', [ProductController::class, 'forceDelete']);
 
     Route::get('/carts', [CartController::class, 'index']);
     Route::post('/carts', [CartController::class, 'store']);

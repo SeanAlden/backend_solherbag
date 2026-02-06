@@ -10,9 +10,27 @@ use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
 {
+    // public function index()
+    // {
+    //     return response()->json(Product::with('category')->latest()->get(), 200);
+    // }
+
     public function index()
     {
-        return response()->json(Product::with('category')->latest()->get(), 200);
+        $products = Product::with('category')
+            ->where('status', 'active') // Hanya yang aktif
+            ->latest()
+            ->get();
+        return response()->json($products, 200);
+    }
+
+    public function inactiveProducts()
+    {
+        $products = Product::with('category')
+            ->where('status', 'inactive')
+            ->latest()
+            ->get();
+        return response()->json($products, 200);
     }
 
     public function show($id)
@@ -68,7 +86,32 @@ class ProductController extends Controller
         return response()->json($product, 200);
     }
 
+    // public function destroy($id)
+    // {
+    //     $product = Product::findOrFail($id);
+    //     if ($product->image) {
+    //         $path = str_replace(Storage::disk('s3')->url(''), '', $product->image);
+    //         Storage::disk('s3')->delete($path);
+    //     }
+    //     $product->delete();
+    //     return response()->json(['message' => 'Product deleted'], 200);
+    // }
+
     public function destroy($id)
+    {
+        $product = Product::findOrFail($id);
+        $product->update(['status' => 'inactive']);
+        return response()->json(['message' => 'Product deactivated'], 200);
+    }
+
+    public function restore($id)
+    {
+        $product = Product::findOrFail($id);
+        $product->update(['status' => 'active']);
+        return response()->json(['message' => 'Product activated'], 200);
+    }
+
+    public function forceDelete($id)
     {
         $product = Product::findOrFail($id);
         if ($product->image) {
@@ -76,6 +119,6 @@ class ProductController extends Controller
             Storage::disk('s3')->delete($path);
         }
         $product->delete();
-        return response()->json(['message' => 'Product deleted'], 200);
+        return response()->json(['message' => 'Product deleted permanently'], 200);
     }
 }
