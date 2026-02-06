@@ -96,4 +96,13 @@ class TransactionController extends Controller
             'data' => $transaction
         ]);
     }
+
+    public function show($id)
+    {
+        // Mengambil transaksi dengan relasi user, detail, dan produk di dalam detail
+        $transaction = Transaction::with(['user', 'details.product'])
+            ->findOrFail($id);
+
+        return response()->json($transaction);
+    }
 }
