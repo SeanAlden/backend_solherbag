@@ -24,6 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Rute Publik (Bisa diakses tanpa login)
 Route::get('/products', [ProductController::class, 'index']);
+Route::get('/products/inactive', [ProductController::class, 'inactiveProducts']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
 
 Route::post('/contact', [ContactController::class, 'store']);
@@ -54,7 +55,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{id}', [ProductController::class, 'update']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
-    Route::get('/products/inactive', [ProductController::class, 'inactiveProducts']);
     Route::put('/products/{id}/restore', [ProductController::class, 'restore']);
     Route::delete('/products/{id}/force', [ProductController::class, 'forceDelete']);
 
