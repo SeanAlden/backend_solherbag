@@ -71,4 +71,29 @@ class TransactionController extends Controller
             ->get();
         return response()->json($transactions);
     }
+
+    // Melihat semua transaksi (Sisi Admin)
+    public function allTransactions()
+    {
+        $transactions = Transaction::with(['user', 'details.product'])
+            ->latest()
+            ->get();
+        return response()->json($transactions);
+    }
+
+    // Update Status Transaksi
+    public function updateStatus(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:pending,processing,completed,cancelled'
+        ]);
+
+        $transaction = Transaction::findOrFail($id);
+        $transaction->update(['status' => $request->status]);
+
+        return response()->json([
+            'message' => "Transaction status updated to {$request->status}",
+            'data' => $transaction
+        ]);
+    }
 }
