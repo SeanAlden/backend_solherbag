@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -155,8 +155,24 @@ class AuthController extends Controller
             ]);
 
             // Simpan URL ke database
+            // $user->profile_image = Storage::disk('s3')->url($path);
+            // $user->save();
+
+            // Log::info('Profile image updated successfully', [
+            //     'user_id' => $user->id,
+            //     'profile_image_url' => $user->profile_image
+            // ]);
+
+            // return response()->json([
+            //     'message' => 'Foto profil diperbarui',
+            //     'user' => $user
+            // ]);
             $user->profile_image = Storage::disk('s3')->url($path);
             $user->save();
+
+            // [TAMBAHAN PENTING]
+            // Refresh model dari database untuk memastikan format URL/Date konsisten dengan endpoint lain
+            $user = $user->fresh();
 
             Log::info('Profile image updated successfully', [
                 'user_id' => $user->id,

@@ -2,14 +2,15 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\CartController;
-use App\Http\Controllers\Api\HomeController;
-use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\ContactController;
-use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\TransactionController;
-use App\Http\Controllers\Api\AddressController; // Pastikan ini di-import
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\AddressController; // Pastikan ini di-import
 
 // Route Public
 Route::get('/home/find-product', [HomeController::class, 'getProductBySearch']);
@@ -33,7 +34,7 @@ Route::get('/products/{id}', [ProductController::class, 'show']);
 Route::post('/contact', [ContactController::class, 'store']);
 Route::get('/admin/messages', [ContactController::class, 'getInboundMessages']);
 
-Route::get('/guest/categories', [CategoryController::class, 'indexGuest']);
+Route::get('/guest/categories', [CategoryController::class, 'index']);
 
 // Route Protected (Membutuhkan Login)
 Route::middleware('auth:sanctum')->group(function () {
@@ -48,7 +49,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/addresses/{id}', [AddressController::class, 'update']);
     Route::delete('/addresses/{id}', [AddressController::class, 'destroy']);
 
-    // Resource lainnya yang sudah dibuat sebelumnya
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::post('/categories', [CategoryController::class, 'store']);
     Route::put('/categories/{id}', [CategoryController::class, 'update']);
@@ -74,4 +74,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/transactions', [TransactionController::class, 'allTransactions']);
     Route::put('/admin/transactions/{id}/status', [TransactionController::class, 'updateStatus']);
     Route::get('/admin/transactions/{id}', [TransactionController::class, 'show']);
+});
+
+Route::middleware(['auth:sanctum'])->prefix('admin/dashboard')->group(function () {
+    Route::get('/stats', [DashboardController::class, 'getStats']);
+    Route::get('/revenue-chart', [DashboardController::class, 'getRevenueChart']);
+    Route::get('/popular-products', [DashboardController::class, 'getPopularProducts']);
 });
