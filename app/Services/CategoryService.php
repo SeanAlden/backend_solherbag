@@ -39,9 +39,22 @@ class CategoryService
         return $category->fresh();
     }
 
+    // public function deleteCategory($id)
+    // {
+    //     $category = Category::findOrFail($id);
+    //     $category->delete();
+    //     $this->clearCache();
+    //     return true;
+    // }
+
     public function deleteCategory($id)
     {
         $category = Category::findOrFail($id);
+
+        if ($category->products()->exists()) {
+            throw new \Exception("Cannot delete category because it contains products.", 409);
+        }
+
         $category->delete();
         $this->clearCache();
         return true;

@@ -84,11 +84,25 @@ class CategoryController extends Controller
         return new CategoryResource($updated);
     }
 
+    // public function destroy($id): JsonResponse
+    // {
+    //     $this->categoryService->deleteCategory($id);
+
+    //     return response()->json(['message' => 'Category and its cache successfully cleared.']);
+    // }
+
     public function destroy($id): JsonResponse
     {
-        $this->categoryService->deleteCategory($id);
+        try {
+            $this->categoryService->deleteCategory($id);
+            return response()->json(['message' => 'Category successfully deleted.']);
+        } catch (\Exception $e) {
+            if ($e->getCode() === 409) {
+                return response()->json(['message' => $e->getMessage()], 409);
+            }
 
-        return response()->json(['message' => 'Category and its cache successfully cleared.']);
+            return response()->json(['message' => 'Internal Server Error'], 500);
+        }
     }
 }
 
