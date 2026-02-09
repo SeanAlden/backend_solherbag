@@ -116,11 +116,13 @@ class TransactionController extends Controller
         // Query Builder untuk Agregasi Produk Terjual
         $query = TransactionDetail::query()
             ->select(
-                'products.code',
-                'products.name',
-                'categories.name as category_name',
-                DB::raw('SUM(transaction_details.quantity) as total_sold'),
-                DB::raw('SUM(transaction_details.quantity * transaction_details.price) as total_revenue')
+            'products.id', 
+            'products.code',
+            'products.name',
+            'products.image', 
+            'categories.name as category_name',
+            DB::raw('SUM(transaction_details.quantity) as total_sold'),
+            DB::raw('SUM(transaction_details.quantity * transaction_details.price) as total_revenue')
             )
             ->join('transactions', 'transactions.id', '=', 'transaction_details.transaction_id')
             ->join('products', 'products.id', '=', 'transaction_details.product_id')
@@ -144,7 +146,7 @@ class TransactionController extends Controller
         }
 
         // Grouping & Ordering
-        $report = $query->groupBy('products.id', 'products.code', 'products.name', 'categories.name')
+        $report = $query->groupBy('products.id', 'products.code', 'products.name', 'products.image', 'categories.name')
             ->orderByDesc('total_revenue') // Urutkan dari omzet tertinggi
             ->paginate($perPage);
 
