@@ -105,4 +105,49 @@ class TransactionController extends Controller
 
         return response()->json($transaction);
     }
+
+    public function salesReport(Request $request)
+    {
+        $month = $request->query('month'); // Format: 1-12
+        $year = $request->query('year');   // Format: YYYY
+        $search = $request->query('search'); // Pencarian nama produk
+        $perPage = $request->query('per_page', 10);
+
+        // Query Builder untuk Agregasi Produk Terjual
+        $query = TransactionDetail::query()
+            ->select(
+                'products.code',
+                'products.name',
+                'categories.name as category_name',
+                DB::raw('SUM(transaction_details.quantity) as total_sold'),
+                DB::raw('SUM(transaction_details.quantity * transaction_details.price) as total_revenue')
+            )
+            ->join('transactions', 'transactions.id', '=', 'transaction_details.transaction_id')
+            ->join('products', 'products.id', '=', 'transaction_details.product_id')
+            ->join('categories', 'categories.id', '=', 'products.category_id')
+            ->where('transactions.status', 'completed'); // Hanya hitung transaksi sukses
+
+        // Filter Bulan & Tahun
+        if ($month && $year) {
+            $query->whereMonth('transactions.created_at', $month)
+                ->whereYear('transactions.created_at', $year);
+        } elseif ($year) {
+            $query->whereYear('transactions.created_at', $year);
+        }
+
+        // Filter Pencarian (Nama Produk atau Kode)
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('products.name', 'like', "%{$search}%")
+                    ->orWhere('products.code', 'like', "%{$search}%");
+            });
+        }
+
+        // Grouping & Ordering
+        $report = $query->groupBy('products.id', 'products.code', 'products.name', 'categories.name')
+            ->orderByDesc('total_revenue') // Urutkan dari omzet tertinggi
+            ->paginate($perPage);
+
+        return response()->json($report);
+    }
 }

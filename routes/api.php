@@ -74,6 +74,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/transactions', [TransactionController::class, 'allTransactions']);
     Route::put('/admin/transactions/{id}/status', [TransactionController::class, 'updateStatus']);
     Route::get('/admin/transactions/{id}', [TransactionController::class, 'show']);
+    Route::get('/admin/sales-report', [TransactionController::class, 'salesReport']);
 });
 
 Route::middleware(['auth:sanctum'])->prefix('admin/dashboard')->group(function () {
