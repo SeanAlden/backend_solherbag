@@ -7,6 +7,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TransactionController;
@@ -82,3 +83,11 @@ Route::middleware(['auth:sanctum'])->prefix('admin/dashboard')->group(function (
     Route::get('/revenue-chart', [DashboardController::class, 'getRevenueChart']);
     Route::get('/popular-products', [DashboardController::class, 'getPopularProducts']);
 });
+
+// Create Xendit Invoice (harus login)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/payments/invoice', [PaymentController::class, 'createInvoice']);
+});
+
+// Xendit callback / webhook (tanpa auth)
+Route::post('/payments/callback', [PaymentController::class, 'callback']);

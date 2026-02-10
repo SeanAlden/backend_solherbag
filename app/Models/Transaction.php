@@ -33,4 +33,9 @@ class Transaction extends Model
     {
         return $this->hasMany(TransactionDetail::class);
     }
+
+    public function payment()
+    {
+        return $this->hasOne(Payment::class);
+    }
 }

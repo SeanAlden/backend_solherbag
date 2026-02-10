@@ -13,6 +13,56 @@ use App\Http\Controllers\Controller;
 
 class TransactionController extends Controller
 {
+    // public function checkout(Request $request)
+    // {
+    //     $user = $request->user();
+    //     $cartItems = Cart::with('product')->where('user_id', $user->id)->get();
+
+    //     if ($cartItems->isEmpty()) {
+    //         return response()->json(['message' => 'Cart is empty'], 400);
+    //     }
+
+    //     return DB::transaction(function () use ($user, $cartItems) {
+    //         $totalAmount = $cartItems->sum('gross_amount');
+    //         $orderId = 'SOL-' . now()->format('Ymd') . '-' . strtoupper(Str::random(5));
+
+    //         // 1. Buat Header Transaksi
+    //         $transaction = Transaction::create([
+    //             'user_id' => $user->id,
+    //             'order_id' => $orderId,
+    //             'total_amount' => $totalAmount,
+    //             'status' => 'pending'
+    //         ]);
+
+    //         foreach ($cartItems as $item) {
+    //             // 2. Cek Stok Terakhir (Race Condition Guard)
+    //             $product = Product::lockForUpdate()->find($item->product_id);
+    //             if ($product->stock < $item->quantity) {
+    //                 throw new \Exception("Stock for {$product->name} is insufficient.");
+    //             }
+
+    //             // 3. Simpan Detail
+    //             TransactionDetail::create([
+    //                 'transaction_id' => $transaction->id,
+    //                 'product_id' => $item->product_id,
+    //                 'quantity' => $item->quantity,
+    //                 'price' => $item->product->discount_price ?? $item->product->price
+    //             ]);
+
+    //             // 4. Potong Stok
+    //             $product->decrement('stock', $item->quantity);
+    //         }
+
+    //         // 5. Kosongkan Keranjang
+    //         Cart::where('user_id', $user->id)->delete();
+
+    //         return response()->json([
+    //             'message' => 'Order created successfully',
+    //             'order_id' => $orderId
+    //         ], 201);
+    //     });
+    // }
+
     public function checkout(Request $request)
     {
         $user = $request->user();
@@ -24,9 +74,8 @@ class TransactionController extends Controller
 
         return DB::transaction(function () use ($user, $cartItems) {
             $totalAmount = $cartItems->sum('gross_amount');
-            $orderId = 'SOL-' . now()->format('Ymd') . '-' . strtoupper(Str::random(5));
+            $orderId = 'SOL-' . now()->format('Ymd') . '-' . strtoupper(Str::random(6));
 
-            // 1. Buat Header Transaksi
             $transaction = Transaction::create([
                 'user_id' => $user->id,
                 'order_id' => $orderId,
@@ -35,13 +84,12 @@ class TransactionController extends Controller
             ]);
 
             foreach ($cartItems as $item) {
-                // 2. Cek Stok Terakhir (Race Condition Guard)
                 $product = Product::lockForUpdate()->find($item->product_id);
+
                 if ($product->stock < $item->quantity) {
-                    throw new \Exception("Stock for {$product->name} is insufficient.");
+                    throw new \Exception("Stock {$product->name} insufficient");
                 }
 
-                // 3. Simpan Detail
                 TransactionDetail::create([
                     'transaction_id' => $transaction->id,
                     'product_id' => $item->product_id,
@@ -49,15 +97,13 @@ class TransactionController extends Controller
                     'price' => $item->product->discount_price ?? $item->product->price
                 ]);
 
-                // 4. Potong Stok
                 $product->decrement('stock', $item->quantity);
             }
 
-            // 5. Kosongkan Keranjang
             Cart::where('user_id', $user->id)->delete();
 
             return response()->json([
-                'message' => 'Order created successfully',
+                'transaction_id' => $transaction->id,
                 'order_id' => $orderId
             ], 201);
         });
@@ -116,13 +162,13 @@ class TransactionController extends Controller
         // Query Builder untuk Agregasi Produk Terjual
         $query = TransactionDetail::query()
             ->select(
-            'products.id', 
-            'products.code',
-            'products.name',
-            'products.image', 
-            'categories.name as category_name',
-            DB::raw('SUM(transaction_details.quantity) as total_sold'),
-            DB::raw('SUM(transaction_details.quantity * transaction_details.price) as total_revenue')
+                'products.id',
+                'products.code',
+                'products.name',
+                'products.image',
+                'categories.name as category_name',
+                DB::raw('SUM(transaction_details.quantity) as total_sold'),
+                DB::raw('SUM(transaction_details.quantity * transaction_details.price) as total_revenue')
             )
             ->join('transactions', 'transactions.id', '=', 'transaction_details.transaction_id')
             ->join('products', 'products.id', '=', 'transaction_details.product_id')
