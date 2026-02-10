@@ -152,6 +152,15 @@ class TransactionController extends Controller
         return response()->json($transaction);
     }
 
+    public function adminShow($id)
+    {
+        // Mengambil transaksi dengan relasi user, detail, dan produk di dalam detail
+        $transaction = Transaction::with(['user', 'details.product'])
+            ->findOrFail($id);
+
+        return response()->json($transaction);
+    }
+
     public function salesReport(Request $request)
     {
         $month = $request->query('month'); // Format: 1-12
