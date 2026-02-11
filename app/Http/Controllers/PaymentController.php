@@ -45,8 +45,8 @@ class PaymentController extends Controller
             'amount' => (int) $transaction->total_amount,
             'description' => 'Payment for Order ' . $transaction->order_id,
             'items' => $items,
-            'success_redirect_url' => config('app.frontend_url') . '/payment-success',
-            'failure_redirect_url' => config('app.frontend_url') . '/payment-failed',
+            'success_redirect_url' => config('frontend.url') . '/payment-success',
+            'failure_redirect_url' => config('frontend.url') . '/payment-failed',
         ]);
 
         $api = new InvoiceApi();
