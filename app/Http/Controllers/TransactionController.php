@@ -333,8 +333,7 @@ class TransactionController extends Controller
     {
         $transaction = Transaction::where('user_id', $request->user()->id)->findOrFail($id);
 
-        // if (!in_array($transaction->status, ['awaiting_payment', 'pending'])) {
-        if (!in_array($transaction->status, ['awaiting payment', 'pending'])) {
+        if (!in_array($transaction->status, ['awaiting_payment', 'pending'])) {
             return response()->json(['message' => 'Cannot cancel this order.'], 400);
         }
 
@@ -374,8 +373,7 @@ class TransactionController extends Controller
             return response()->json(['message' => 'Cannot request refund for this order state.'], 400);
         }
 
-        // $transaction->update(['status' => 'refund_requested']);
-        $transaction->update(['status' => 'refund requested']);
+        $transaction->update(['status' => 'refund_requested']);
         return response()->json(['message' => 'Refund requested. Waiting for admin approval.']);
     }
 
@@ -384,8 +382,7 @@ class TransactionController extends Controller
     {
         $transaction = Transaction::where('user_id', $request->user()->id)->findOrFail($id);
 
-        // if ($transaction->status !== 'refund_approved') {
-        if ($transaction->status !== 'refund allowed') {
+        if ($transaction->status !== 'refund_approved') {
             return response()->json(['message' => 'Refund not approved yet.'], 400);
         }
 
@@ -404,26 +401,22 @@ class TransactionController extends Controller
     public function approveRefund($id)
     {
         $transaction = Transaction::findOrFail($id);
-        // if ($transaction->status !== 'refund_requested') {
-        if ($transaction->status !== 'refund requested') {
+        if ($transaction->status !== 'refund_requested') {
             return response()->json(['message' => 'Invalid status'], 400);
         }
 
-        // $transaction->update(['status' => 'refund_approved']);
-        $transaction->update(['status' => 'refund allowed']);
+        $transaction->update(['status' => 'refund_approved']);
         return response()->json(['message' => 'Refund request approved.']);
     }
 
     public function rejectRefund($id)
     {
         $transaction = Transaction::findOrFail($id);
-        // if ($transaction->status !== 'refund_requested') {
-        if ($transaction->status !== 'refund requested') {
+        if ($transaction->status !== 'refund_requested') {
             return response()->json(['message' => 'Invalid status'], 400);
         }
 
-        // $transaction->update(['status' => 'refund_rejected']);
-        $transaction->update(['status' => 'refund rejected']);
+        $transaction->update(['status' => 'refund_rejected']);
         return response()->json(['message' => 'Refund request rejected.']);
     }
 
