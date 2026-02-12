@@ -70,10 +70,19 @@ Route::middleware('auth:sanctum')->group(function () {
     // Checkout (buat transaksi dari cart)
     Route::post('/checkout', [TransactionController::class, 'checkout']);
 
-    // List transaksi user login
     Route::get('/transactions', [TransactionController::class, 'index']);
     Route::get('/admin/transactions', [TransactionController::class, 'allTransactions']);
-    Route::put('/admin/transactions/{id}/status', [TransactionController::class, 'updateStatus']);
+
+    // User Actions
+    Route::post('/transactions/{id}/cancel', [TransactionController::class, 'cancelOrder']);
+    Route::post('/transactions/{id}/confirm', [TransactionController::class, 'confirmComplete']);
+    Route::post('/transactions/{id}/refund-request', [TransactionController::class, 'requestRefund']);
+    Route::post('/transactions/{id}/refund-process', [TransactionController::class, 'processRefundUser']);
+    Route::post('/admin/transactions/{id}/refund-approve', [TransactionController::class, 'approveRefund']);
+    Route::post('/admin/transactions/{id}/refund-reject', [TransactionController::class, 'rejectRefund']);
+
+    // List transaksi user login
+    // Route::put('/admin/transactions/{id}/status', [TransactionController::class, 'updateStatus']);
     Route::get('/transactions/{id}', [TransactionController::class, 'show']);
     Route::get('/admin/transactions/{id}', [TransactionController::class, 'adminShow']);
     Route::get('/admin/sales-report', [TransactionController::class, 'salesReport']);

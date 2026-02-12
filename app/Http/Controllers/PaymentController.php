@@ -68,27 +68,61 @@ class PaymentController extends Controller
         ]);
     }
 
+    // Callback ini menangani perubahan status dari Xendit
+    // public function callback(Request $request)
+    // {
+    //     $getToken = $request->header('x-callback-token');
+    //     $callbackToken = env("XENDIT_CALLBACK_TOKEN");
+
+    //     if (!$callbackToken || $getToken != $callbackToken) {
+    //         return response()->json(['message' => 'Unauthorized'], 401);
+    //     }
+
+    //     $payment = Payment::where('external_id', $request->external_id)->first();
+
+    //     if (!$payment) {
+    //         return response()->json(['message' => 'Payment not found'], 404);
+    //     }
+
+    //     $payment->update(['status' => $request->status]);
+
+    //     if ($request->status === 'PAID') {
+    //         $payment->transaction->update(['status' => 'completed']);
+    //     }
+
+    //     return response()->json(['message' => 'OK']);
+    // }
+
+    // Callback ini menangani perubahan status dari Xendit
     public function callback(Request $request)
     {
-        $getToken = $request->header('x-callback-token');
-        $callbackToken = env("XENDIT_CALLBACK_TOKEN");
-
-        if (!$callbackToken || $getToken != $callbackToken) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        // Validasi Token Xendit disini (wajib di production)
 
         $payment = Payment::where('external_id', $request->external_id)->first();
+        if (!$payment) return response()->json(['message' => 'Payment not found'], 404);
 
-        if (!$payment) {
-            return response()->json(['message' => 'Payment not found'], 404);
+        $status = $request->status; // PENDING, PAID, EXPIRED, FAILED
+        $payment->update(['status' => $status]);
+
+        $transaction = $payment->transaction;
+
+        if ($status === 'PAID') {
+            // Nomor 4: Update ke processing saat berhasil bayar
+            $transaction->update(['status' => 'processing']);
+        } elseif ($status === 'EXPIRED' || $status === 'FAILED') {
+            // Jika invoice expired di Xendit, cancel transaksi
+            if ($transaction->status !== 'cancelled') {
+                $transaction->update(['status' => 'cancelled']);
+                // Kembalikan stok logic here
+            }
+        }
+        // Note: Xendit kadang mengirim status 'PENDING' lagi jika user memilih metode pembayaran tapi belum bayar.
+        // Kita bisa update transaction status ke 'pending' jika awalnya 'awaiting_payment'
+        // elseif ($status === 'PENDING' && $transaction->status === 'awaiting_payment') {
+        elseif ($status === 'PENDING' && $transaction->status === 'awaiting payment') {
+            $transaction->update(['status' => 'pending']);
         }
 
-        $payment->update(['status' => $request->status]);
-
-        if ($request->status === 'PAID') {
-            $payment->transaction->update(['status' => 'completed']);
-        }
-
-        return response()->json(['message' => 'OK']);
+        return response()->json(['message' => 'Callback received']);
     }
 }
