@@ -38,37 +38,6 @@ class AuthController extends Controller
         ], 201);
     }
 
-    // public function login(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'email'    => 'required|email',
-    //         'password' => 'required',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json($validator->errors(), 422);
-    //     }
-
-    //     $user = User::where('email', $request->email)->first();
-
-    //     // Periksa apakah user ada dan password cocok
-    //     if (!$user || !Hash::check($request->password, $user->password)) {
-    //         return response()->json([
-    //             'message' => 'Email atau Password salah.'
-    //         ], 401);
-    //     }
-
-    //     // Buat Token menggunakan Sanctum
-    //     $token = $user->createToken('auth_token')->plainTextToken;
-
-    //     return response()->json([
-    //         'message'      => 'Login Berhasil',
-    //         'access_token' => $token,
-    //         'token_type'   => 'Bearer',
-    //         'user'         => $user
-    //     ], 200);
-    // }
-
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -92,7 +61,6 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Buat Token menggunakan Sanctum
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -188,24 +156,9 @@ class AuthController extends Controller
                 'new_path' => $path
             ]);
 
-            // Simpan URL ke database
-            // $user->profile_image = Storage::disk('s3')->url($path);
-            // $user->save();
-
-            // Log::info('Profile image updated successfully', [
-            //     'user_id' => $user->id,
-            //     'profile_image_url' => $user->profile_image
-            // ]);
-
-            // return response()->json([
-            //     'message' => 'Foto profil diperbarui',
-            //     'user' => $user
-            // ]);
             $user->profile_image = Storage::disk('s3')->url($path);
             $user->save();
 
-            // [TAMBAHAN PENTING]
-            // Refresh model dari database untuk memastikan format URL/Date konsisten dengan endpoint lain
             $user = $user->fresh();
 
             Log::info('Profile image updated successfully', [
@@ -235,7 +188,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'old_password' => 'required',
-            'password' => 'required|string|min:8|confirmed', // 'confirmed' mencari field password_confirmation
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
         $user = $request->user();
@@ -264,5 +217,84 @@ class AuthController extends Controller
         // Memuat user beserta relasi addresses yang sudah kita buat sebelumnya
         $user = User::with('addresses')->findOrFail($id); //
         return response()->json($user, 200);
+    }
+
+    public function updateAdminProfileInfo(Request $request)
+    {
+        $admin = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'first_name' => 'required|string|max:255',
+            'last_name'  => 'required|string|max:255',
+            'email'      => 'required|string|email|max:255|unique:users,email,' . $admin->id,
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $admin->update($request->only('first_name', 'last_name', 'email'));
+
+        return response()->json([
+            'message' => 'Admin profile updated successfully',
+            'admin'   => $admin
+        ]);
+    }
+    
+    public function updateAdminImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg|max:2048'
+        ]);
+
+        $admin = $request->user();
+
+        try {
+
+            if ($admin->profile_image) {
+                $oldPath = 'profiles/' . basename($admin->profile_image);
+                Storage::disk('s3')->delete($oldPath);
+            }
+
+            $path = $request->file('image')->store('profiles', [
+                'disk' => 's3',
+                'visibility' => 'public'
+            ]);
+
+            $admin->profile_image = Storage::disk('s3')->url($path);
+            $admin->save();
+
+            return response()->json([
+                'message' => 'Admin photo updated',
+                'admin'   => $admin->fresh()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update admin photo'
+            ], 500);
+        }
+    }
+
+    public function updateAdminPassword(Request $request)
+    {
+        $request->validate([
+            'old_password' => 'required',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $admin = $request->user();
+
+        if (!Hash::check($request->old_password, $admin->password)) {
+            return response()->json([
+                'message' => 'Old password does not match'
+            ], 401);
+        }
+
+        $admin->password = Hash::make($request->password);
+        $admin->save();
+
+        return response()->json([
+            'message' => 'Password updated successfully'
+        ]);
     }
 }

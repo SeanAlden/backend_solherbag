@@ -92,3 +92,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Xendit callback / webhook (tanpa auth)
 Route::post('/payments/callback', [PaymentController::class, 'callback']);
+
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+
+    Route::get('/', function (Request $request) {
+        return $request->user();
+    });
+
+    Route::post('/update-info', [AuthController::class, 'updateAdminProfileInfo']);
+    Route::post('/update-image', [AuthController::class, 'updateAdminImage']);
+    Route::post('/update-password', [AuthController::class, 'updateAdminPassword']);
+});
