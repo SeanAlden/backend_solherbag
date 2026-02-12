@@ -79,7 +79,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/sales-report', [TransactionController::class, 'salesReport']);
 });
 
-Route::middleware(['auth:sanctum'])->prefix('admin/dashboard')->group(function () {
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin/dashboard')->group(function () {
     Route::get('/stats', [DashboardController::class, 'getStats']);
     Route::get('/revenue-chart', [DashboardController::class, 'getRevenueChart']);
     Route::get('/popular-products', [DashboardController::class, 'getPopularProducts']);
