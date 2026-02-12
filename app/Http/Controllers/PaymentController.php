@@ -70,6 +70,13 @@ class PaymentController extends Controller
 
     public function callback(Request $request)
     {
+        $getToken = $request->header('x-callback-token');
+        $callbackToken = env("XENDIT_CALLBACK_TOKEN");
+
+        if (!$callbackToken || $getToken != $callbackToken) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
         $payment = Payment::where('external_id', $request->external_id)->first();
 
         if (!$payment) {
