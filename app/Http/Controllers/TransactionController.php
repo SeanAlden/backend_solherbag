@@ -183,6 +183,87 @@ class TransactionController extends Controller
 
     // --- USER ACTIONS ---
 
+    // public function checkout(Request $request)
+    // {
+    //     $user = $request->user();
+    //     $cartItems = Cart::with('product')->where('user_id', $user->id)->get();
+
+    //     if ($cartItems->isEmpty()) {
+    //         return response()->json(['message' => 'Cart is empty'], 400);
+    //     }
+
+    //     return DB::transaction(function () use ($user, $cartItems) {
+    //         $totalAmount = $cartItems->sum('gross_amount');
+    //         $orderId = 'SOL-' . now()->format('Ymd') . '-' . strtoupper(Str::random(6));
+
+    //         // 1. Status awal "awaiting_payment"
+    //         $transaction = Transaction::create([
+    //             'user_id' => $user->id,
+    //             'order_id' => $orderId,
+    //             'total_amount' => $totalAmount,
+    //             // 'status' => 'awaiting_payment'
+    //             'status' => 'awaiting payment'
+    //         ]);
+
+    //         $items = [];
+    //         foreach ($cartItems as $item) {
+    //             $product = Product::lockForUpdate()->find($item->product_id);
+    //             if ($product->stock < $item->quantity) {
+    //                 throw new \Exception("Stock {$product->name} insufficient");
+    //             }
+
+    //             TransactionDetail::create([
+    //                 'transaction_id' => $transaction->id,
+    //                 'product_id' => $item->product_id,
+    //                 'quantity' => $item->quantity,
+    //                 'price' => $item->product->discount_price ?? $item->product->price
+    //             ]);
+
+    //             $product->decrement('stock', $item->quantity);
+
+    //             // Siapkan item untuk Xendit
+    //             $items[] = [
+    //                 'name' => $item->product->name,
+    //                 'quantity' => $item->quantity,
+    //                 'price' => (int) ($item->product->discount_price ?? $item->product->price),
+    //                 'category' => 'PHYSICAL_PRODUCT'
+    //             ];
+    //         }
+
+    //         // 2. Generate Xendit Invoice Langsung saat Checkout
+    //         $externalId = 'PAY-' . $orderId;
+    //         $invoiceRequest = new CreateInvoiceRequest([
+    //             'external_id' => $externalId,
+    //             'payer_email' => $user->email,
+    //             'amount' => (int) $totalAmount,
+    //             'description' => 'Payment for Order ' . $orderId,
+    //             'items' => $items,
+    //             'success_redirect_url' => config('app.frontend_url') . '/orderpage', // Redirect kembali ke order page
+    //             'failure_redirect_url' => config('app.frontend_url') . '/orderpage',
+    //         ]);
+
+    //         $api = new InvoiceApi();
+    //         $invoice = $api->createInvoice($invoiceRequest);
+
+    //         // Simpan Payment dengan URL
+    //         Payment::create([
+    //             'transaction_id' => $transaction->id,
+    //             'external_id' => $externalId,
+    //             'checkout_url' => $invoice['invoice_url'],
+    //             'amount' => $totalAmount,
+    //             'status' => 'PENDING' // Status Xendit
+    //         ]);
+
+    //         Cart::where('user_id', $user->id)->delete();
+
+    //         return response()->json([
+    //             'transaction_id' => $transaction->id,
+    //             'order_id' => $orderId,
+    //             'payment_url' => $invoice['invoice_url']
+    //         ], 201);
+    //     });
+    // }
+
     public function checkout(Request $request)
     {
         $user = $request->user();
@@ -196,18 +277,16 @@ class TransactionController extends Controller
             $totalAmount = $cartItems->sum('gross_amount');
             $orderId = 'SOL-' . now()->format('Ymd') . '-' . strtoupper(Str::random(6));
 
-            // 1. Status awal "awaiting_payment"
             $transaction = Transaction::create([
                 'user_id' => $user->id,
                 'order_id' => $orderId,
                 'total_amount' => $totalAmount,
-                // 'status' => 'awaiting_payment'
                 'status' => 'awaiting payment'
             ]);
 
-            $items = [];
             foreach ($cartItems as $item) {
                 $product = Product::lockForUpdate()->find($item->product_id);
+
                 if ($product->stock < $item->quantity) {
                     throw new \Exception("Stock {$product->name} insufficient");
                 }
@@ -220,46 +299,13 @@ class TransactionController extends Controller
                 ]);
 
                 $product->decrement('stock', $item->quantity);
-
-                // Siapkan item untuk Xendit
-                $items[] = [
-                    'name' => $item->product->name,
-                    'quantity' => $item->quantity,
-                    'price' => (int) ($item->product->discount_price ?? $item->product->price),
-                    'category' => 'PHYSICAL_PRODUCT'
-                ];
             }
-
-            // 2. Generate Xendit Invoice Langsung saat Checkout
-            $externalId = 'PAY-' . $orderId;
-            $invoiceRequest = new CreateInvoiceRequest([
-                'external_id' => $externalId,
-                'payer_email' => $user->email,
-                'amount' => (int) $totalAmount,
-                'description' => 'Payment for Order ' . $orderId,
-                'items' => $items,
-                'success_redirect_url' => config('app.frontend_url') . '/orderpage', // Redirect kembali ke order page
-                'failure_redirect_url' => config('app.frontend_url') . '/orderpage',
-            ]);
-
-            $api = new InvoiceApi();
-            $invoice = $api->createInvoice($invoiceRequest);
-
-            // Simpan Payment dengan URL
-            Payment::create([
-                'transaction_id' => $transaction->id,
-                'external_id' => $externalId,
-                'checkout_url' => $invoice['invoice_url'],
-                'amount' => $totalAmount,
-                'status' => 'PENDING' // Status Xendit
-            ]);
 
             Cart::where('user_id', $user->id)->delete();
 
             return response()->json([
                 'transaction_id' => $transaction->id,
-                'order_id' => $orderId,
-                'payment_url' => $invoice['invoice_url']
+                'order_id' => $orderId
             ], 201);
         });
     }
