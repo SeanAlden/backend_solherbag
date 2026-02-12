@@ -38,6 +38,37 @@ class AuthController extends Controller
         ], 201);
     }
 
+    // public function login(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'email'    => 'required|email',
+    //         'password' => 'required',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json($validator->errors(), 422);
+    //     }
+
+    //     $user = User::where('email', $request->email)->first();
+
+    //     // Periksa apakah user ada dan password cocok
+    //     if (!$user || !Hash::check($request->password, $user->password)) {
+    //         return response()->json([
+    //             'message' => 'Email atau Password salah.'
+    //         ], 401);
+    //     }
+
+    //     // Buat Token menggunakan Sanctum
+    //     $token = $user->createToken('auth_token')->plainTextToken;
+
+    //     return response()->json([
+    //         'message'      => 'Login Berhasil',
+    //         'access_token' => $token,
+    //         'token_type'   => 'Bearer',
+    //         'user'         => $user
+    //     ], 200);
+    // }
+
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -51,8 +82,11 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        // Periksa apakah user ada dan password cocok
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (
+            !$user ||
+            !Hash::check($request->password, $user->password) ||
+            $user->usertype !== 'user'
+        ) {
             return response()->json([
                 'message' => 'Email atau Password salah.'
             ], 401);
