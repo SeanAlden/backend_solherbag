@@ -436,7 +436,8 @@ class TransactionController extends Controller
 
             // Siapkan Payload Refund
             $refundRequest = new CreateRefund([
-                'payment_reference_id' => $xenditInvoiceId, // ID Invoice Asli Xendit
+                // 'payment_reference_id' => $xenditInvoiceId, // ID Invoice Asli Xendit
+                'invoice_id' => $xenditInvoiceId,
                 'reason' => 'REQUESTED_BY_CUSTOMER',
                 'amount' => (int) $transaction->total_amount, // Pastikan integer
                 'metadata' => [
