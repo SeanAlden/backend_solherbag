@@ -168,7 +168,10 @@ use Xendit\Configuration;
 use App\Models\Transaction;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use Xendit\Refund\RefundApi;
 use Xendit\Invoice\InvoiceApi;
+use Xendit\XenditSdkException;
+use Xendit\Refund\CreateRefund;
 use App\Models\TransactionDetail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -378,24 +381,99 @@ class TransactionController extends Controller
     }
 
     // User klik "Refund Now" setelah disetujui admin
+    // public function processRefundUser(Request $request, $id)
+    // {
+    //     $transaction = Transaction::where('user_id', $request->user()->id)->findOrFail($id);
+
+    //     if ($transaction->status !== 'refund_approved') {
+    //         return response()->json(['message' => 'Refund not approved yet.'], 400);
+    //     }
+
+    //     // --- DISINI MEMANGGIL API REFUND/DISBURSEMENT XENDIT (Simulasi) ---
+    //     // $xendit->createRefund(...)
+
+    //     // Asumsi refund berhasil
+    //     $transaction->update(['status' => 'refunded']);
+    //     if ($transaction->payment) {
+    //         $transaction->payment->update(['status' => 'REFUNDED']);
+    //     }
+
+    //     return response()->json(['message' => 'Refund processed successfully. Funds returned.']);
+    // }
+
     public function processRefundUser(Request $request, $id)
     {
-        $transaction = Transaction::where('user_id', $request->user()->id)->findOrFail($id);
+        // 1. Validasi Transaksi Milik User
+        $transaction = Transaction::with('payment')
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
 
+        // 2. Validasi Status Approval
         if ($transaction->status !== 'refund_approved') {
             return response()->json(['message' => 'Refund not approved yet.'], 400);
         }
 
-        // --- DISINI MEMANGGIL API REFUND/DISBURSEMENT XENDIT (Simulasi) ---
-        // $xendit->createRefund(...)
-
-        // Asumsi refund berhasil
-        $transaction->update(['status' => 'refunded']);
-        if ($transaction->payment) {
-            $transaction->payment->update(['status' => 'REFUNDED']);
+        // 3. Validasi Data Payment
+        if (!$transaction->payment) {
+            return response()->json(['message' => 'Payment data not found.'], 404);
         }
 
-        return response()->json(['message' => 'Refund processed successfully. Funds returned.']);
+        try {
+            // --- STEP A: Dapatkan Xendit Invoice ID Asli ---
+            // Karena kita hanya simpan external_id, kita cari dulu ID aslinya ke Xendit
+            $invoiceApi = new InvoiceApi();
+            $invoices = $invoiceApi->getInvoices(null, $transaction->payment->external_id);
+
+            if (empty($invoices) || count($invoices) === 0) {
+                throw new \Exception("Invoice not found in Xendit.");
+            }
+
+            // Ambil Invoice ID (format: 5f4b...)
+            $xenditInvoiceId = $invoices[0]['id'];
+
+            // --- STEP B: Eksekusi Refund ---
+            $refundApi = new RefundApi();
+
+            // Siapkan Payload Refund
+            $refundRequest = new CreateRefund([
+                'payment_reference_id' => $xenditInvoiceId, // ID Invoice Asli Xendit
+                'reason' => 'REQUESTED_BY_CUSTOMER',
+                'amount' => (int) $transaction->total_amount, // Pastikan integer
+                'metadata' => [
+                    'order_id' => $transaction->order_id,
+                    'reason_detail' => 'Approved by Admin'
+                ]
+            ]);
+
+            // Panggil API Refund (null parameter untuk idempotency key)
+            $result = $refundApi->createRefund(null, null, $refundRequest);
+
+            // --- STEP C: Update Database Lokal ---
+            // Jika tidak ada error sampai sini, berarti sukses
+
+            DB::transaction(function () use ($transaction) {
+                $transaction->update(['status' => 'refunded']);
+
+                if ($transaction->payment) {
+                    $transaction->payment->update(['status' => 'REFUNDED']);
+                }
+            });
+
+            return response()->json([
+                'message' => 'Refund processed successfully. Funds returned.',
+                'refund_id' => $result['id'] ?? null
+            ]);
+        } catch (XenditSdkException $e) {
+            // Error dari Xendit (misal: dana tidak cukup, atau sudah direfund)
+            return response()->json([
+                'message' => 'Xendit Refund Failed: ' . $e->getMessage()
+            ], 500);
+        } catch (\Exception $e) {
+            // Error umum lainnya
+            return response()->json([
+                'message' => 'Refund Error: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function approveRefund($id)
