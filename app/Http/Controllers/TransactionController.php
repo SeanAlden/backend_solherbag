@@ -606,7 +606,6 @@ class TransactionController extends Controller
         $search = $request->query('search'); // Pencarian nama produk
         $perPage = $request->query('per_page', 10);
 
-        // Query Builder untuk Agregasi Produk Terjual
         $query = TransactionDetail::query()
             ->select(
                 'products.id',
@@ -620,7 +619,7 @@ class TransactionController extends Controller
             ->join('transactions', 'transactions.id', '=', 'transaction_details.transaction_id')
             ->join('products', 'products.id', '=', 'transaction_details.product_id')
             ->join('categories', 'categories.id', '=', 'products.category_id')
-            ->where('transactions.status', 'completed'); // Hanya hitung transaksi sukses
+            ->whereIn('transactions.status', ['completed', 'refund_rejected']);
 
         // Filter Bulan & Tahun
         if ($month && $year) {
