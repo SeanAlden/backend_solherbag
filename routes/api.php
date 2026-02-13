@@ -101,6 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Xendit callback / webhook (tanpa auth)
 Route::post('/payments/callback', [PaymentController::class, 'callback']);
+Route::post('/shipping/rates', [PaymentController::class, 'getShippingRates']);
 
 Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
 

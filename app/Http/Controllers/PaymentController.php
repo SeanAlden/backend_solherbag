@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Address;
 use App\Models\Payment;
 use Xendit\Configuration;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Xendit\Invoice\InvoiceApi;
+use App\Services\BiteshipService;
 use Xendit\Invoice\CreateInvoiceRequest;
 
 class PaymentController extends Controller
@@ -20,13 +22,30 @@ class PaymentController extends Controller
     {
         $request->validate([
             'transaction_id' => 'required|exists:transactions,id',
-            'address_id' => 'required'
+            'address_id' => 'required',
+            // Validasi data kurir dari frontend
+            'courier_company' => 'required|string',
+            'courier_type' => 'required|string',
+            'shipping_cost' => 'required|numeric'
         ]);
 
-        $transaction = Transaction::with('user', 'details.product')
+        $transaction = Transaction::with(['user', 'details.product', 'payment'])
             ->findOrFail($request->transaction_id);
 
-        $externalId = 'PAY-' . $transaction->order_id;
+        // --- UPDATE TRANSAKSI DENGAN ONGKIR & ALAMAT ---
+        // Pastikan kita tidak menambah ongkir berkali-kali jika invoice di-regenerate
+        if (!$transaction->shipping_cost || $transaction->shipping_cost == 0) {
+            $transaction->update([
+                'address_id' => $request->address_id,
+                'courier_company' => $request->courier_company,
+                'courier_type' => $request->courier_type,
+                'shipping_cost' => $request->shipping_cost,
+                'total_amount' => $transaction->total_amount + $request->shipping_cost  // Total Baru!
+            ]);
+        }
+
+        // $externalId = 'PAY-' . $transaction->order_id;
+        $externalId = 'PAY-' . $transaction->order_id . ($transaction->payment ? '-' . time() : '');
 
         // Optional: itemized invoice (recommended)
         $items = [];
@@ -99,9 +118,10 @@ class PaymentController extends Controller
         // Validasi Token Xendit disini (wajib di production)
 
         $payment = Payment::where('external_id', $request->external_id)->first();
-        if (!$payment) return response()->json(['message' => 'Payment not found'], 404);
+        if (!$payment)
+            return response()->json(['message' => 'Payment not found'], 404);
 
-        $status = $request->status; // PENDING, PAID, EXPIRED, FAILED
+        $status = $request->status;  // PENDING, PAID, EXPIRED, FAILED
         $payment->update(['status' => $status]);
 
         $transaction = $payment->transaction;
@@ -109,6 +129,22 @@ class PaymentController extends Controller
         if ($status === 'PAID') {
             // Nomor 4: Update ke processing saat berhasil bayar
             $transaction->update(['status' => 'processing']);
+            // --- TRIGGER BITESHIP CREATE ORDER ---
+            try {
+                $biteship = new BiteshipService();
+                $order = $biteship->createOrder($transaction);
+
+                // Simpan nomor resi (AWB) dan Order ID Biteship ke database
+                if (isset($order['id'])) {
+                    $transaction->update([
+                        'biteship_order_id' => $order['id'],
+                        'tracking_number' => $order['courier']['waybill_id'] ?? 'Pending'
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Biteship Error: ' . $e->getMessage());
+                // Transaksi tetap sukses (processing), admin bisa mengurus resi manual jika API gagal
+            }
         } elseif ($status === 'EXPIRED' || $status === 'FAILED') {
             // Jika invoice expired di Xendit, cancel transaksi
             if ($transaction->status !== 'cancelled') {
@@ -124,5 +160,18 @@ class PaymentController extends Controller
         }
 
         return response()->json(['message' => 'Callback received']);
+    }
+
+    public function getShippingRates(Request $request)
+    {
+        $request->validate(['address_id' => 'required|exists:addresses,id']);
+
+        $address = Address::find($request->address_id);
+        $postalCode = $address->details['postal_code'];  // Sesuaikan dengan struktur JSON di database Anda
+
+        $biteship = new BiteshipService();
+        $rates = $biteship->getRates($postalCode);
+
+        return response()->json($rates);
     }
 }
