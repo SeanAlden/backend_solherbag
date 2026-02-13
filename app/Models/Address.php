@@ -38,6 +38,7 @@ class Address extends Model
     ];
 
     protected $casts = [
+        'receiver' => 'array', // Tambahkan juga jika receiver formatnya JSON
         'is_default' => 'boolean',
     ];
 
