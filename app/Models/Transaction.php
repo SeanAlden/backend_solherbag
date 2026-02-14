@@ -14,6 +14,12 @@ class Transaction extends Model
         'order_id',
         'total_amount',
         'status',
+        'address_id',
+        'shipping_cost',
+        'courier_company',
+        'courier_type',
+        'tracking_number',   
+        'biteship_order_id', 
     ];
 
     /**

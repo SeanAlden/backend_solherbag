@@ -175,13 +175,38 @@ class PaymentController extends Controller
     //     return response()->json($rates);
     // }
 
+    // public function getShippingRates(Request $request)
+    // {
+    //     $request->validate(['address_id' => 'required|exists:addresses,id']);
+
+    //     $address = Address::find($request->address_id);
+
+    //     // Langsung panggil properti $address->postal_code
+    //     if (!$address || !$address->postal_code) {
+    //         return response()->json([
+    //             'message' => 'Alamat tidak valid atau kodepos tidak ditemukan.'
+    //         ], 400);
+    //     }
+
+    //     try {
+    //         $biteship = new BiteshipService();
+    //         // Langsung passing $address->postal_code
+    //         $rates = $biteship->getRates($address->postal_code);
+
+    //         return response()->json($rates);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'message' => 'Gagal mengambil ongkos kirim: ' . $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
     public function getShippingRates(Request $request)
     {
         $request->validate(['address_id' => 'required|exists:addresses,id']);
 
         $address = Address::find($request->address_id);
 
-        // Langsung panggil properti $address->postal_code
         if (!$address || !$address->postal_code) {
             return response()->json([
                 'message' => 'Alamat tidak valid atau kodepos tidak ditemukan.'
@@ -190,8 +215,14 @@ class PaymentController extends Controller
 
         try {
             $biteship = new BiteshipService();
-            // Langsung passing $address->postal_code
             $rates = $biteship->getRates($address->postal_code);
+
+            // [PERBAIKAN] Cek jika API Biteship memberikan respon success: false
+            if (isset($rates['success']) && $rates['success'] === false) {
+                return response()->json([
+                    'message' => 'Biteship API Error: ' . ($rates['error'] ?? 'Unknown error')
+                ], 400); // Return 400 agar masuk ke block catch() di frontend
+            }
 
             return response()->json($rates);
         } catch (\Exception $e) {
