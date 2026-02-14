@@ -15,11 +15,12 @@ class Transaction extends Model
         'total_amount',
         'status',
         'address_id',
+        'shipping_method', 
         'shipping_cost',
         'courier_company',
         'courier_type',
-        'tracking_number',   
-        'biteship_order_id', 
+        'tracking_number',
+        'biteship_order_id',
     ];
 
     /**
