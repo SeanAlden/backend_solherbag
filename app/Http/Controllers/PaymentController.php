@@ -115,7 +115,8 @@ class PaymentController extends Controller
                 'courier_company' => $courierCompany,
                 'courier_type' => $courierType,
                 'shipping_cost' => $shippingCost,
-                'total_amount' => $transaction->total_amount + $shippingCost
+                'total_amount' => $transaction->total_amount + $shippingCost,
+                'status' => 'pending'
             ]);
         }
 
