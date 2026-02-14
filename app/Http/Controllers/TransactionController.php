@@ -284,7 +284,7 @@ class TransactionController extends Controller
                 'user_id' => $user->id,
                 'order_id' => $orderId,
                 'total_amount' => $totalAmount,
-                'status' => 'pending'
+                'status' => 'awaiting_payment'
             ]);
 
             foreach ($cartItems as $item) {
