@@ -162,16 +162,42 @@ class PaymentController extends Controller
         return response()->json(['message' => 'Callback received']);
     }
 
+    // public function getShippingRates(Request $request)
+    // {
+    //     $request->validate(['address_id' => 'required|exists:addresses,id']);
+
+    //     $address = Address::find($request->address_id);
+    //     $postalCode = $address->details['postal_code'];  // Sesuaikan dengan struktur JSON di database Anda
+
+    //     $biteship = new BiteshipService();
+    //     $rates = $biteship->getRates($postalCode);
+
+    //     return response()->json($rates);
+    // }
+
     public function getShippingRates(Request $request)
     {
         $request->validate(['address_id' => 'required|exists:addresses,id']);
 
         $address = Address::find($request->address_id);
-        $postalCode = $address->details['postal_code'];  // Sesuaikan dengan struktur JSON di database Anda
 
-        $biteship = new BiteshipService();
-        $rates = $biteship->getRates($postalCode);
+        // Langsung panggil properti $address->postal_code
+        if (!$address || !$address->postal_code) {
+            return response()->json([
+                'message' => 'Alamat tidak valid atau kodepos tidak ditemukan.'
+            ], 400);
+        }
 
-        return response()->json($rates);
+        try {
+            $biteship = new BiteshipService();
+            // Langsung passing $address->postal_code
+            $rates = $biteship->getRates($address->postal_code);
+
+            return response()->json($rates);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Gagal mengambil ongkos kirim: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
