@@ -280,7 +280,7 @@ class PaymentController extends Controller
             if ($transaction->status !== 'cancelled') {
                 $transaction->update(['status' => 'cancelled']);
             }
-        } elseif ($status === 'PENDING' && $transaction->status === 'awaiting payment') {
+        } elseif ($status === 'PENDING' && $transaction->status === 'awaiting_payment') {
             $transaction->update(['status' => 'pending']);
         }
 
