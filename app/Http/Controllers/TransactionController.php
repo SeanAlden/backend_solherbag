@@ -173,6 +173,7 @@ use Xendit\Invoice\InvoiceApi;
 use Xendit\XenditSdkException;
 use Xendit\Refund\CreateRefund;
 use App\Models\TransactionDetail;
+use App\Services\BiteshipService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Xendit\Invoice\CreateInvoiceRequest;
@@ -643,5 +644,27 @@ class TransactionController extends Controller
             ->paginate($perPage);
 
         return response()->json($report);
+    }
+
+    public function trackOrder($id)
+    {
+        $transaction = Transaction::where('user_id', request()->user()->id)->findOrFail($id);
+
+        if ($transaction->shipping_method !== 'biteship' || !$transaction->tracking_number) {
+            return response()->json(['message' => 'Tracking information is not available yet.'], 400);
+        }
+
+        try {
+            $biteship = new BiteshipService();
+            $tracking = $biteship->getTracking($transaction->tracking_number, $transaction->courier_company);
+
+            if (isset($tracking['success']) && $tracking['success'] === false) {
+                return response()->json(['message' => $tracking['error']], 400);
+            }
+
+            return response()->json($tracking);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to retrieve tracking data: ' . $e->getMessage()], 500);
+        }
     }
 }
