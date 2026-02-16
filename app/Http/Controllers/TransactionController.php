@@ -646,23 +646,51 @@ class TransactionController extends Controller
         return response()->json($report);
     }
 
+    // public function trackOrder($id)
+    // {
+    //     $transaction = Transaction::where('user_id', request()->user()->id)->findOrFail($id);
+
+    //     if ($transaction->shipping_method !== 'biteship' || !$transaction->tracking_number) {
+    //         return response()->json(['message' => 'Tracking information is not available yet.'], 400);
+    //     }
+
+    //     try {
+    //         $biteship = new BiteshipService();
+    //         $tracking = $biteship->getTracking($transaction->tracking_number, $transaction->courier_company);
+
+    //         if (isset($tracking['success']) && $tracking['success'] === false) {
+    //             return response()->json(['message' => $tracking['error']], 400);
+    //         }
+
+    //         return response()->json($tracking);
+    //     } catch (\Exception $e) {
+    //         return response()->json(['message' => 'Failed to retrieve tracking data: ' . $e->getMessage()], 500);
+    //     }
+    // }
+
     public function trackOrder($id)
     {
         $transaction = Transaction::where('user_id', request()->user()->id)->findOrFail($id);
 
-        if ($transaction->shipping_method !== 'biteship' || !$transaction->tracking_number) {
+        // [PERBAIKAN] Validasi menggunakan biteship_order_id
+        if ($transaction->shipping_method !== 'biteship' || !$transaction->biteship_order_id) {
             return response()->json(['message' => 'Tracking information is not available yet.'], 400);
         }
 
         try {
-            $biteship = new BiteshipService();
-            $tracking = $biteship->getTracking($transaction->tracking_number, $transaction->courier_company);
+            // [PERBAIKAN] Memanggil Endpoint GET Order Biteship
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                'Authorization' => config('services.biteship.api_key')
+            ])->get("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
 
-            if (isset($tracking['success']) && $tracking['success'] === false) {
-                return response()->json(['message' => $tracking['error']], 400);
+            $data = $response->json();
+
+            if (isset($data['success']) && $data['success'] === false) {
+                return response()->json(['message' => $data['error'] ?? 'Order not found in Logistics'], 400);
             }
 
-            return response()->json($tracking);
+            // Kembalikan seluruh objek respon JSON dari Biteship ke Frontend
+            return response()->json($data);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to retrieve tracking data: ' . $e->getMessage()], 500);
         }
