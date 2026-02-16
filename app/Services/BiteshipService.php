@@ -157,7 +157,7 @@ class BiteshipService
             'courier_company' => $transaction->courier_company,
             'courier_type' => $transaction->courier_type,
 
-            // [PERBAIKAN] HAPUS baris 'delivery_type' => 'now' karena ditolak kurir reguler
+            'delivery_type' => 'later',
 
             'items' => [
                 [
