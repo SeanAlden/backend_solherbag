@@ -100,25 +100,65 @@ class BiteshipService
     //     return $response->json();
     // }
 
+    // public function createOrder($transaction)
+    // {
+    //     $transaction->loadMissing(['address', 'user']);
+
+    //     $response = Http::withHeaders([
+    //         'Authorization' => $this->apiKey,
+    //         'Content-Type' => 'application/json'
+    //     ])->post("{$this->baseUrl}/orders", [
+    //         'shipper_contact_name' => 'Solher Store',
+    //         'shipper_contact_phone' => '08123456789',
+    //         'origin_postal_code' => config('services.biteship.origin_postal_code'),
+    //         'destination_postal_code' => $transaction->address->postal_code,
+    //         'destination_contact_name' => trim($transaction->address->first_name_address . ' ' . $transaction->address->last_name_address),
+    //         // Pastikan format telepon benar (min 10 digit, maks 15 digit angka)
+    //         'destination_contact_phone' => '08123456789',
+    //         'destination_address' => $transaction->address->address_location,
+    //         'courier_company' => $transaction->courier_company,
+    //         'courier_type' => $transaction->courier_type,
+    //         'delivery_type' => 'now',
+    //         'items' => [
+    //             [
+    //                 'name' => 'Solher Products',
+    //                 'value' => (int) $transaction->total_amount,
+    //                 'quantity' => 1,
+    //                 'weight' => 1000
+    //             ]
+    //         ]
+    //     ]);
+
+    //     $data = $response->json();
+
+    //     // LOGGING PENTING: Agar kita tahu jika Biteship menolak payload kita
+    //     if (isset($data['success']) && $data['success'] === false) {
+    //         \Log::error('Biteship Create Order Failed: ', $data);
+    //     }
+
+    //     return $data;
+    // }
+
     public function createOrder($transaction)
     {
+        // Load relasi
         $transaction->loadMissing(['address', 'user']);
 
-        $response = Http::withHeaders([
-            'Authorization' => $this->apiKey,
-            'Content-Type' => 'application/json'
-        ])->post("{$this->baseUrl}/orders", [
+        $payload = [
             'shipper_contact_name' => 'Solher Store',
             'shipper_contact_phone' => '08123456789',
             'origin_postal_code' => config('services.biteship.origin_postal_code'),
+
             'destination_postal_code' => $transaction->address->postal_code,
             'destination_contact_name' => trim($transaction->address->first_name_address . ' ' . $transaction->address->last_name_address),
-            // Pastikan format telepon benar (min 10 digit, maks 15 digit angka)
-            'destination_contact_phone' => '08123456789',
+            'destination_contact_phone' => '08123456789', // Harusnya ambil dari data user/address
             'destination_address' => $transaction->address->address_location,
+
             'courier_company' => $transaction->courier_company,
             'courier_type' => $transaction->courier_type,
-            'delivery_type' => 'now',
+
+            // [PERBAIKAN] HAPUS baris 'delivery_type' => 'now' karena ditolak kurir reguler
+
             'items' => [
                 [
                     'name' => 'Solher Products',
@@ -127,13 +167,19 @@ class BiteshipService
                     'weight' => 1000
                 ]
             ]
-        ]);
+        ];
+
+        $response = Http::withHeaders([
+            'Authorization' => $this->apiKey,
+            'Content-Type' => 'application/json'
+        ])->post("{$this->baseUrl}/orders", $payload);
 
         $data = $response->json();
 
-        // LOGGING PENTING: Agar kita tahu jika Biteship menolak payload kita
+        // [PERBAIKAN] PAKSA TULIS LOG JIKA BITESHIP MENOLAK PAYLOAD
         if (isset($data['success']) && $data['success'] === false) {
-            \Log::error('Biteship Create Order Failed: ', $data);
+            \Log::channel('stderr')->error('BITESHIP REJECTED ORDER: ' . json_encode($data));
+            \Log::error('BITESHIP REJECTED ORDER: ' . json_encode($data));
         }
 
         return $data;

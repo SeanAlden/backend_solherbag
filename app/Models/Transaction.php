@@ -15,7 +15,7 @@ class Transaction extends Model
         'total_amount',
         'status',
         'address_id',
-        'shipping_method', 
+        'shipping_method',
         'shipping_cost',
         'courier_company',
         'courier_type',
@@ -44,5 +44,10 @@ class Transaction extends Model
     public function payment()
     {
         return $this->hasOne(Payment::class);
+    }
+
+    public function address()
+    {
+        return $this->belongsTo(Address::class);
     }
 }

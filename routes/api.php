@@ -89,6 +89,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transactions/{id}/tracking', [TransactionController::class, 'trackOrder']);
 });
 
+Route::post('/biteship/callback', [TransactionController::class, 'biteshipCallback']);
+
 Route::middleware(['auth:sanctum', 'admin'])->prefix('admin/dashboard')->group(function () {
     Route::get('/stats', [DashboardController::class, 'getStats']);
     Route::get('/revenue-chart', [DashboardController::class, 'getRevenueChart']);

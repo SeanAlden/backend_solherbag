@@ -667,4 +667,39 @@ class TransactionController extends Controller
             return response()->json(['message' => 'Failed to retrieve tracking data: ' . $e->getMessage()], 500);
         }
     }
+
+    public function biteshipCallback(Request $request)
+    {
+        // Biteship mengirimkan token otentikasi di Header untuk keamanan
+        $biteshipSignature = $request->header('biteship-signature');
+        // Validasi signature jika perlu (Opsional tapi disarankan di Production)
+
+        $event = $request->input('event'); // Contoh: 'order.status.updated' atau 'waybill.ready'
+        $biteshipOrderId = $request->input('order_id');
+        $status = $request->input('status'); // picking_up, dropped, delivered, dll
+        $waybill = $request->input('courier_tracking_id'); // Ini adalah resi
+
+        \Log::info('Biteship Webhook Received: ', $request->all());
+
+        $transaction = Transaction::where('biteship_order_id', $biteshipOrderId)->first();
+
+        if (!$transaction) {
+            return response()->json(['message' => 'Transaction not found'], 200);
+        }
+
+        // 1. Jika ada update Nomor Resi yang menyusul
+        if ($waybill && $transaction->tracking_number === 'Pending') {
+            $transaction->update(['tracking_number' => $waybill]);
+        }
+
+        // 2. Jika Anda ingin Auto-Complete transaksi saat kurir mengubah status jadi 'delivered'
+        // (Ini opsional, karena Anda sudah punya tombol "Order Received" untuk ditekan user)
+        /*
+        if ($status === 'delivered' && $transaction->status === 'processing') {
+            $transaction->update(['status' => 'completed']);
+        }
+        */
+
+        return response()->json(['message' => 'Webhook processed']);
+    }
 }
