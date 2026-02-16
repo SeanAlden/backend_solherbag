@@ -336,6 +336,60 @@ class PaymentController extends Controller
     // }
 
     // Callback ini menangani perubahan status dari Xendit
+    // public function callback(Request $request)
+    // {
+    //     $payment = Payment::where('external_id', $request->external_id)->first();
+    //     if (!$payment) return response()->json(['message' => 'Payment not found'], 404);
+
+    //     $status = $request->status;
+    //     $payment->update(['status' => $status]);
+    //     $transaction = $payment->transaction;
+
+    //     if ($status === 'PAID') {
+    //         $transaction->update(['status' => 'processing']);
+
+    //         // --- PENCEGAHAN BITESHIP JIKA FREE SHIPPING ---
+    //         if ($transaction->shipping_method === 'biteship') {
+    //             try {
+    //                 $biteship = new BiteshipService();
+    //                 $order = $biteship->createOrder($transaction);
+
+    //                 // Jika Biteship sukses dan memberikan ID
+    //                 if (isset($order['id'])) {
+    //                     $transaction->update([
+    //                         'biteship_order_id' => $order['id'],
+    //                         'tracking_number' => $order['courier']['waybill_id'] ?? 'Pending'
+    //                     ]);
+    //                 } else {
+    //                     // [TRICK DEBUGGING] Simpan alasan gagal Biteship langsung ke Database!
+    //                     $errorMsg = $order['error'] ?? ($order['message'] ?? 'Unknown Biteship API Error');
+    //                     $transaction->update([
+    //                         // Kita potong 200 karakter agar tidak melebihi batas panjang kolom varchar database
+    //                         'tracking_number' => 'API ERR: ' . substr($errorMsg, 0, 200)
+    //                     ]);
+    //                     \Log::error('Biteship Create Order Failed: ' . json_encode($order));
+    //                 }
+    //             } catch (\Exception $e) {
+    //                 // [TRICK DEBUGGING] Simpan error server langsung ke Database!
+    //                 $transaction->update([
+    //                     'tracking_number' => 'SYS ERR: ' . substr($e->getMessage(), 0, 200)
+    //                 ]);
+    //                 \Log::error('Biteship Exception: ' . $e->getMessage());
+    //             }
+    //         } else {
+    //             $transaction->update(['tracking_number' => 'Internal-Delivery']);
+    //         }
+    //     } elseif ($status === 'EXPIRED' || $status === 'FAILED') {
+    //         if ($transaction->status !== 'cancelled') {
+    //             $transaction->update(['status' => 'cancelled']);
+    //         }
+    //     } elseif ($status === 'PENDING' && $transaction->status === 'awaiting_payment') {
+    //         $transaction->update(['status' => 'pending']);
+    //     }
+
+    //     return response()->json(['message' => 'Callback received']);
+    // }
+
     public function callback(Request $request)
     {
         $payment = Payment::where('external_id', $request->external_id)->first();
@@ -346,7 +400,17 @@ class PaymentController extends Controller
         $transaction = $payment->transaction;
 
         if ($status === 'PAID') {
-            $transaction->update(['status' => 'processing']);
+
+            // [PERBAIKAN] Menangkap Payment Method dari Webhook Xendit
+            $paymentMethod = $request->input('payment_method', 'Unknown');
+            $paymentChannel = $request->input('payment_channel', '');
+            $fullPaymentMethod = trim($paymentMethod . ' ' . $paymentChannel);
+
+            // Update status dan payment method sekaligus
+            $transaction->update([
+                'status' => 'processing',
+                'payment_method' => $fullPaymentMethod
+            ]);
 
             // --- PENCEGAHAN BITESHIP JIKA FREE SHIPPING ---
             if ($transaction->shipping_method === 'biteship') {
@@ -354,23 +418,25 @@ class PaymentController extends Controller
                     $biteship = new BiteshipService();
                     $order = $biteship->createOrder($transaction);
 
-                    // Jika Biteship sukses dan memberikan ID
+                    // Deteksi error manual di sisi controller
+                    if (isset($order['success']) && $order['success'] === false) {
+                        \Log::error('Gagal Create Order Biteship: ' . json_encode($order));
+                    }
+
                     if (isset($order['id'])) {
                         $transaction->update([
                             'biteship_order_id' => $order['id'],
                             'tracking_number' => $order['courier']['waybill_id'] ?? 'Pending'
                         ]);
                     } else {
-                        // [TRICK DEBUGGING] Simpan alasan gagal Biteship langsung ke Database!
+                        // Simpan alasan gagal Biteship langsung ke Database
                         $errorMsg = $order['error'] ?? ($order['message'] ?? 'Unknown Biteship API Error');
                         $transaction->update([
-                            // Kita potong 200 karakter agar tidak melebihi batas panjang kolom varchar database
                             'tracking_number' => 'API ERR: ' . substr($errorMsg, 0, 200)
                         ]);
                         \Log::error('Biteship Create Order Failed: ' . json_encode($order));
                     }
                 } catch (\Exception $e) {
-                    // [TRICK DEBUGGING] Simpan error server langsung ke Database!
                     $transaction->update([
                         'tracking_number' => 'SYS ERR: ' . substr($e->getMessage(), 0, 200)
                     ]);

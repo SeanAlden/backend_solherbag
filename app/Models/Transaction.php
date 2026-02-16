@@ -17,6 +17,7 @@ class Transaction extends Model
         'address_id',
         'shipping_method',
         'shipping_cost',
+        'payment_method', 
         'courier_company',
         'courier_type',
         'tracking_number',
