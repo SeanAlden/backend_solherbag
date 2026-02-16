@@ -185,33 +185,87 @@ class BiteshipService
     //     return $data;
     // }
 
+    // public function createOrder($transaction)
+    // {
+    //     // Load relasi
+    //     $transaction->loadMissing(['address', 'user']);
+
+    //     $payload = [
+    //         // [PERBAIKAN] Gunakan awalan 'origin_' sesuai standar Biteship
+    //         'origin_contact_name' => 'Solher Store',
+    //         'origin_contact_phone' => '08123456789',
+    //         'origin_address' => 'Gudang Solher, Jl. Utama No. 1', // Tambahkan alamat gudang/toko Anda
+    //         'origin_postal_code' => config('services.biteship.origin_postal_code'),
+
+    //         'destination_postal_code' => $transaction->address->postal_code,
+    //         'destination_contact_name' => trim($transaction->address->first_name_address . ' ' . $transaction->address->last_name_address),
+    //         'destination_contact_phone' => '08123456789', // Idealnya ambil dari data user/address jika ada
+    //         'destination_address' => $transaction->address->address_location,
+
+    //         'courier_company' => $transaction->courier_company,
+    //         'courier_type' => $transaction->courier_type,
+    //         'delivery_type' => 'later',
+
+    //         'items' => [
+    //             [
+    //                 'name' => 'Solher Products',
+    //                 'value' => (int) $transaction->total_amount,
+    //                 'quantity' => 1,
+    //                 'weight' => 1000
+    //             ]
+    //         ]
+    //     ];
+
+    //     $response = Http::withHeaders([
+    //         'Authorization' => $this->apiKey,
+    //         'Content-Type' => 'application/json'
+    //     ])->post("{$this->baseUrl}/orders", $payload);
+
+    //     $data = $response->json();
+
+    //     // [PERBAIKAN] PAKSA TULIS LOG JIKA BITESHIP MENOLAK PAYLOAD
+    //     if (isset($data['success']) && $data['success'] === false) {
+    //         \Log::channel('stderr')->error('BITESHIP REJECTED ORDER: ' . json_encode($data));
+    //         \Log::error('BITESHIP REJECTED ORDER: ' . json_encode($data));
+    //     }
+
+    //     return $data;
+    // }
+
     public function createOrder($transaction)
     {
         // Load relasi
         $transaction->loadMissing(['address', 'user']);
 
+        // Set zona waktu agar sesuai dengan Indonesia (WIB)
+        date_default_timezone_set('Asia/Jakarta');
+
         $payload = [
-            // [PERBAIKAN] Gunakan awalan 'origin_' sesuai standar Biteship
             'origin_contact_name' => 'Solher Store',
             'origin_contact_phone' => '08123456789',
-            'origin_address' => 'Gudang Solher, Jl. Utama No. 1', // Tambahkan alamat gudang/toko Anda
+            'origin_address' => 'Gudang Solher, Jl. Utama No. 1',
             'origin_postal_code' => config('services.biteship.origin_postal_code'),
 
             'destination_postal_code' => $transaction->address->postal_code,
             'destination_contact_name' => trim($transaction->address->first_name_address . ' ' . $transaction->address->last_name_address),
-            'destination_contact_phone' => '08123456789', // Idealnya ambil dari data user/address jika ada
+            'destination_contact_phone' => '08123456789', // Ingat, idealnya ini dari nomor HP pembeli asli
             'destination_address' => $transaction->address->address_location,
 
             'courier_company' => $transaction->courier_company,
             'courier_type' => $transaction->courier_type,
+
             'delivery_type' => 'later',
+
+            // [TAMBAHAN BARU] Jadwal pengiriman/pickup (Hari ini, 1 jam dari sekarang)
+            'delivery_date' => date('Y-m-d'),
+            'delivery_time' => date('H:i', strtotime('+1 hour')),
 
             'items' => [
                 [
                     'name' => 'Solher Products',
                     'value' => (int) $transaction->total_amount,
                     'quantity' => 1,
-                    'weight' => 1000
+                    'weight' => 1000 // Satuan dalam gram (1000 = 1kg)
                 ]
             ]
         ];
@@ -223,7 +277,7 @@ class BiteshipService
 
         $data = $response->json();
 
-        // [PERBAIKAN] PAKSA TULIS LOG JIKA BITESHIP MENOLAK PAYLOAD
+        // PAKSA TULIS LOG JIKA BITESHIP MENOLAK PAYLOAD
         if (isset($data['success']) && $data['success'] === false) {
             \Log::channel('stderr')->error('BITESHIP REJECTED ORDER: ' . json_encode($data));
             \Log::error('BITESHIP REJECTED ORDER: ' . json_encode($data));
