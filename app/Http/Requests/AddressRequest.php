@@ -30,6 +30,8 @@ class AddressRequest extends FormRequest
             'province' => 'required|string',
             'postal_code' => 'required|string|max:10',
             'location_type' => 'nullable|string',
+            'latitude' => 'nullable|string',   
+            'longitude' => 'nullable|string',  
             'is_default' => 'nullable|boolean'
         ];
     }

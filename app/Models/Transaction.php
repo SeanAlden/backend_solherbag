@@ -17,9 +17,12 @@ class Transaction extends Model
         'address_id',
         'shipping_method',
         'shipping_cost',
-        'payment_method', 
+        'payment_method',
         'courier_company',
         'courier_type',
+        'delivery_type', 
+        'delivery_date', 
+        'delivery_time', 
         'tracking_number',
         'biteship_order_id',
     ];

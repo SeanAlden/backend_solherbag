@@ -28,6 +28,8 @@ class AddressResource extends JsonResource
                 'city' => $this->city,
                 'province' => $this->province,
                 'postal_code' => $this->postal_code,
+                'latitude' => $this->latitude,   
+                'longitude' => $this->longitude, 
             ],
             'is_default' => (bool) $this->is_default,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),

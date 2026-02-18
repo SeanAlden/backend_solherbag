@@ -32,9 +32,18 @@ use Illuminate\Database\Eloquent\Model;
 class Address extends Model
 {
     protected $fillable = [
-        'user_id', 'region', 'first_name_address', 'last_name_address',
-        'address_location', 'location_type', 'city', 'province',
-        'postal_code', 'is_default'
+        'user_id',
+        'region',
+        'first_name_address',
+        'last_name_address',
+        'address_location',
+        'location_type',
+        'city',
+        'province',
+        'postal_code',
+        'latitude',
+        'longitude',
+        'is_default'
     ];
 
     protected $casts = [

@@ -15,19 +15,48 @@ class BiteshipService
     }
 
     // 1. CEK ONGKIR
-    public function getRates($destinationPostalCode, $weight = 1000)
+    // public function getRates($destinationPostalCode, $weight = 1000)
+    // {
+    //     $response = Http::withHeaders([
+    //         'Authorization' => $this->apiKey,
+    //         'Content-Type' => 'application/json'
+    //     ])->post("{$this->baseUrl}/rates/couriers", [
+    //         'origin_postal_code' => config('services.biteship.origin_postal_code'),
+    //         'destination_postal_code' => $destinationPostalCode,
+    //         'couriers' => 'jne,sicepat,jnt,anteraja,grab,gojek,paxel,ninja', // Tentukan kurir yang aktif
+    //         'items' => [
+    //             ['weight' => $weight] // Default 1kg, bisa dibuat dinamis jika tabel product punya kolom weight
+    //         ]
+    //     ]);
+
+    //     return $response->json();
+    // }
+
+    public function getRates($address, $weight = 1000)
     {
+        $payload = [
+            'origin_postal_code' => config('services.biteship.origin_postal_code'),
+
+            // Masukkan data tujuan lengkap
+            'destination_postal_code' => $address->postal_code,
+
+            'origin_latitude' => '-7.25706',
+            'origin_longitude' => '112.74549',
+
+            // [TAMBAHAN PENTING] Kirim koordinat agar akurat & muncul di respon
+            'destination_latitude' => $address->latitude,
+            'destination_longitude' => $address->longitude,
+
+            'couriers' => 'jne,sicepat,jnt,anteraja,grab,gojek,paxel,ninja',
+            'items' => [
+                ['weight' => $weight]
+            ]
+        ];
+
         $response = Http::withHeaders([
             'Authorization' => $this->apiKey,
             'Content-Type' => 'application/json'
-        ])->post("{$this->baseUrl}/rates/couriers", [
-            'origin_postal_code' => config('services.biteship.origin_postal_code'),
-            'destination_postal_code' => $destinationPostalCode,
-            'couriers' => 'jne,sicepat,jnt', // Tentukan kurir yang aktif
-            'items' => [
-                ['weight' => $weight] // Default 1kg, bisa dibuat dinamis jika tabel product punya kolom weight
-            ]
-        ]);
+        ])->post("{$this->baseUrl}/rates/couriers", $payload);
 
         return $response->json();
     }
@@ -232,40 +261,173 @@ class BiteshipService
     //     return $data;
     // }
 
+    // public function createOrder($transaction)
+    // {
+    //     // Load relasi
+    //     $transaction->loadMissing(['address', 'user']);
+
+    //     // Set zona waktu agar sesuai dengan Indonesia (WIB)
+    //     date_default_timezone_set('Asia/Jakarta');
+
+    //     $payload = [
+    //         'origin_contact_name' => 'Solher Store',
+    //         'origin_contact_phone' => '08123456789',
+    //         'origin_address' => 'Gudang Solher, Jl. Utama No. 1',
+    //         'origin_postal_code' => config('services.biteship.origin_postal_code'),
+
+    //         'destination_postal_code' => $transaction->address->postal_code,
+    //         'destination_contact_name' => trim($transaction->address->first_name_address . ' ' . $transaction->address->last_name_address),
+    //         'destination_contact_phone' => '08123456789', // Ingat, idealnya ini dari nomor HP pembeli asli
+    //         'destination_address' => $transaction->address->address_location,
+
+    //         'courier_company' => $transaction->courier_company,
+    //         'courier_type' => $transaction->courier_type,
+
+    //         'delivery_type' => 'later',
+
+    //         // [TAMBAHAN BARU] Jadwal pengiriman/pickup (Hari ini, 1 jam dari sekarang)
+    //         'delivery_date' => date('Y-m-d'),
+    //         'delivery_time' => date('H:i', strtotime('+1 hour')),
+
+    //         'items' => [
+    //             [
+    //                 'name' => 'Solher Products',
+    //                 'value' => (int) $transaction->total_amount,
+    //                 'quantity' => 1,
+    //                 'weight' => 1000 // Satuan dalam gram (1000 = 1kg)
+    //             ]
+    //         ]
+    //     ];
+
+    //     $response = Http::withHeaders([
+    //         'Authorization' => $this->apiKey,
+    //         'Content-Type' => 'application/json'
+    //     ])->post("{$this->baseUrl}/orders", $payload);
+
+    //     $data = $response->json();
+
+    //     // PAKSA TULIS LOG JIKA BITESHIP MENOLAK PAYLOAD
+    //     if (isset($data['success']) && $data['success'] === false) {
+    //         \Log::channel('stderr')->error('BITESHIP REJECTED ORDER: ' . json_encode($data));
+    //         \Log::error('BITESHIP REJECTED ORDER: ' . json_encode($data));
+    //     }
+
+    //     return $data;
+    // }
+
+    // public function createOrder($transaction)
+    // {
+    //     // Load relasi address, user, dan details (untuk ambil quantity)
+    //     $transaction->loadMissing(['address', 'user', 'details']);
+
+    //     date_default_timezone_set('Asia/Jakarta');
+
+    //     // [PERBAIKAN] Menghitung total quantity item dari relasi details
+    //     $totalQuantity = $transaction->details->sum('quantity');
+
+    //     $payload = [
+    //         // INFO PENGIRIM (Tetap statis karena ini toko Anda)
+    //         'origin_contact_name' => 'Solher Store',
+    //         'origin_contact_phone' => '08123456789',
+    //         'origin_address' => 'Gudang Solher, Jl. Utama No. 1',
+    //         'origin_postal_code' => config('services.biteship.origin_postal_code'),
+
+    //         // INFO PENERIMA (Dinamis dari relasi)
+    //         'destination_postal_code' => $transaction->address->postal_code,
+    //         'destination_contact_name' => trim($transaction->address->first_name_address . ' ' . $transaction->address->last_name_address),
+
+    //         // Mengambil phone dari tabel users. Jika null, gunakan fallback agar Biteship tidak menolak pesanan.
+    //         'destination_contact_phone' => $transaction->user->phone ?? '08123456789',
+    //         'destination_address' => $transaction->address->address_location,
+
+    //         'destination_coordinate' => [
+    //             'latitude' => floatval($transaction->address->latitude),
+    //             'longitude' => floatval($transaction->address->longitude),
+    //         ],
+
+    //         // INFO KURIR & JADWAL (Dari input user di Frontend)
+    //         'courier_company' => $transaction->courier_company,
+    //         'courier_type' => $transaction->courier_type,
+    //         'delivery_type' => $transaction->delivery_type ?? 'later',
+    //         'delivery_date' => $transaction->delivery_date ?? date('Y-m-d'),
+    //         'delivery_time' => $transaction->delivery_time ?? date('H:i', strtotime('+1 hour')),
+
+    //         // ITEM DETAILS
+    //         'items' => [
+    //             [
+    //                 'name' => 'Solher Products',
+    //                 'value' => (int) $transaction->total_amount,
+    //                 'quantity' => (int) $totalQuantity, // Nilai dinamis
+    //                 'weight' => 1000 * $totalQuantity   // Asumsi 1 barang = 1000 gram (1kg)
+    //             ]
+    //         ]
+    //     ];
+
+    //     $response = Http::withHeaders([
+    //         'Authorization' => $this->apiKey,
+    //         'Content-Type' => 'application/json'
+    //     ])->post("{$this->baseUrl}/orders", $payload);
+
+    //     $data = $response->json();
+
+    //     if (isset($data['success']) && $data['success'] === false) {
+    //         \Log::channel('stderr')->error('BITESHIP REJECTED ORDER: ' . json_encode($data));
+    //         \Log::error('BITESHIP REJECTED ORDER: ' . json_encode($data));
+    //     }
+
+    //     return $data;
+    // }
+
     public function createOrder($transaction)
     {
         // Load relasi
-        $transaction->loadMissing(['address', 'user']);
+        $transaction->loadMissing(['address', 'user', 'details']);
 
-        // Set zona waktu agar sesuai dengan Indonesia (WIB)
         date_default_timezone_set('Asia/Jakarta');
 
+        // Hitung total quantity
+        $totalQuantity = $transaction->details->sum('quantity');
+
         $payload = [
+            // INFO PENGIRIM
             'origin_contact_name' => 'Solher Store',
             'origin_contact_phone' => '08123456789',
             'origin_address' => 'Gudang Solher, Jl. Utama No. 1',
             'origin_postal_code' => config('services.biteship.origin_postal_code'),
 
+            // [PERBAIKAN PENTING] Tambahkan Koordinat Asal (Gudang) untuk Kurir Instan (Grab/Gojek)
+            // Ganti koordinat ini dengan koordinat asli gudang Anda!
+            'origin_coordinate' => [
+                'latitude' => -7.25706,  // Contoh: Latitude Surabaya Pusat
+                'longitude' => 112.74549 // Contoh: Longitude Surabaya Pusat
+            ],
+
+            // INFO PENERIMA
             'destination_postal_code' => $transaction->address->postal_code,
             'destination_contact_name' => trim($transaction->address->first_name_address . ' ' . $transaction->address->last_name_address),
-            'destination_contact_phone' => '08123456789', // Ingat, idealnya ini dari nomor HP pembeli asli
+            'destination_contact_phone' => $transaction->user->phone ?? '08123456789',
             'destination_address' => $transaction->address->address_location,
 
+            // Koordinat Penerima (Wajib untuk Grab/Gojek)
+            'destination_coordinate' => [
+                'latitude' => floatval($transaction->address->latitude),
+                'longitude' => floatval($transaction->address->longitude),
+            ],
+
+            // INFO KURIR & JADWAL
             'courier_company' => $transaction->courier_company,
             'courier_type' => $transaction->courier_type,
+            'delivery_type' => $transaction->delivery_type ?? 'later',
+            'delivery_date' => $transaction->delivery_date ?? date('Y-m-d'),
+            'delivery_time' => $transaction->delivery_time ?? date('H:i', strtotime('+1 hour')),
 
-            'delivery_type' => 'later',
-
-            // [TAMBAHAN BARU] Jadwal pengiriman/pickup (Hari ini, 1 jam dari sekarang)
-            'delivery_date' => date('Y-m-d'),
-            'delivery_time' => date('H:i', strtotime('+1 hour')),
-
+            // ITEM DETAILS
             'items' => [
                 [
                     'name' => 'Solher Products',
                     'value' => (int) $transaction->total_amount,
-                    'quantity' => 1,
-                    'weight' => 1000 // Satuan dalam gram (1000 = 1kg)
+                    'quantity' => (int) $totalQuantity,
+                    'weight' => 1000 * $totalQuantity
                 ]
             ]
         ];
@@ -277,7 +439,7 @@ class BiteshipService
 
         $data = $response->json();
 
-        // PAKSA TULIS LOG JIKA BITESHIP MENOLAK PAYLOAD
+        // Log error jika gagal
         if (isset($data['success']) && $data['success'] === false) {
             \Log::channel('stderr')->error('BITESHIP REJECTED ORDER: ' . json_encode($data));
             \Log::error('BITESHIP REJECTED ORDER: ' . json_encode($data));
