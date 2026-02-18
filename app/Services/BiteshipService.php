@@ -388,6 +388,50 @@ class BiteshipService
         // Hitung total quantity
         $totalQuantity = $transaction->details->sum('quantity');
 
+        // $payload = [
+        //     // INFO PENGIRIM
+        //     'origin_contact_name' => 'Solher Store',
+        //     'origin_contact_phone' => '08123456789',
+        //     'origin_address' => 'Gudang Solher, Jl. Utama No. 1',
+        //     'origin_postal_code' => config('services.biteship.origin_postal_code'),
+
+        //     // [PERBAIKAN PENTING] Tambahkan Koordinat Asal (Gudang) untuk Kurir Instan (Grab/Gojek)
+        //     // Ganti koordinat ini dengan koordinat asli gudang Anda!
+        //     'origin_coordinate' => [
+        //         'latitude' => -7.25706,  // Contoh: Latitude Surabaya Pusat
+        //         'longitude' => 112.74549 // Contoh: Longitude Surabaya Pusat
+        //     ],
+
+        //     // INFO PENERIMA
+        //     'destination_postal_code' => $transaction->address->postal_code,
+        //     'destination_contact_name' => trim($transaction->address->first_name_address . ' ' . $transaction->address->last_name_address),
+        //     'destination_contact_phone' => $transaction->user->phone ?? '08123456789',
+        //     'destination_address' => $transaction->address->address_location,
+
+        //     // Koordinat Penerima (Wajib untuk Grab/Gojek)
+        //     'destination_coordinate' => [
+        //         'latitude' => floatval($transaction->address->latitude),
+        //         'longitude' => floatval($transaction->address->longitude),
+        //     ],
+
+        //     // INFO KURIR & JADWAL
+        //     'courier_company' => $transaction->courier_company,
+        //     'courier_type' => $transaction->courier_type,
+        //     'delivery_type' => $transaction->delivery_type ?? 'later',
+        //     'delivery_date' => $transaction->delivery_date ?? date('Y-m-d'),
+        //     'delivery_time' => $transaction->delivery_time ?? date('H:i', strtotime('+1 hour')),
+
+        //     // ITEM DETAILS
+        //     'items' => [
+        //         [
+        //             'name' => 'Solher Products',
+        //             'value' => (int) $transaction->total_amount,
+        //             'quantity' => (int) $totalQuantity,
+        //             'weight' => 1000 * $totalQuantity
+        //         ]
+        //     ]
+        // ];
+
         $payload = [
             // INFO PENGIRIM
             'origin_contact_name' => 'Solher Store',
@@ -395,12 +439,16 @@ class BiteshipService
             'origin_address' => 'Gudang Solher, Jl. Utama No. 1',
             'origin_postal_code' => config('services.biteship.origin_postal_code'),
 
-            // [PERBAIKAN PENTING] Tambahkan Koordinat Asal (Gudang) untuk Kurir Instan (Grab/Gojek)
-            // Ganti koordinat ini dengan koordinat asli gudang Anda!
+            // [FIX 1] Format Object (Standar Dokumentasi)
             'origin_coordinate' => [
-                'latitude' => -7.25706,  // Contoh: Latitude Surabaya Pusat
-                'longitude' => 112.74549 // Contoh: Longitude Surabaya Pusat
+                'latitude' => -7.25706,
+                'longitude' => 112.74549
             ],
+
+            // [FIX 2] Format Flat (Legacy Support / Jaga-jaga)
+            // Tambahkan ini agar sistem Biteship yang membaca format lama tetap bisa mendeteksi lokasi
+            'origin_latitude' => -7.25706,
+            'origin_longitude' => 112.74549,
 
             // INFO PENERIMA
             'destination_postal_code' => $transaction->address->postal_code,
@@ -408,20 +456,23 @@ class BiteshipService
             'destination_contact_phone' => $transaction->user->phone ?? '08123456789',
             'destination_address' => $transaction->address->address_location,
 
-            // Koordinat Penerima (Wajib untuk Grab/Gojek)
+            // Koordinat Penerima (Object)
             'destination_coordinate' => [
                 'latitude' => floatval($transaction->address->latitude),
                 'longitude' => floatval($transaction->address->longitude),
             ],
 
-            // INFO KURIR & JADWAL
+            // Koordinat Penerima (Flat - Jaga-jaga)
+            'destination_latitude' => floatval($transaction->address->latitude),
+            'destination_longitude' => floatval($transaction->address->longitude),
+
+            // INFO KURIR
             'courier_company' => $transaction->courier_company,
             'courier_type' => $transaction->courier_type,
             'delivery_type' => $transaction->delivery_type ?? 'later',
             'delivery_date' => $transaction->delivery_date ?? date('Y-m-d'),
             'delivery_time' => $transaction->delivery_time ?? date('H:i', strtotime('+1 hour')),
 
-            // ITEM DETAILS
             'items' => [
                 [
                     'name' => 'Solher Products',
@@ -431,6 +482,14 @@ class BiteshipService
                 ]
             ]
         ];
+
+        // [DEBUGGING] Log Payload sebelum dikirim untuk memastikan data benar
+        \Log::channel('stderr')->info('BITESHIP PAYLOAD:', $payload);
+
+        $response = Http::withHeaders([
+            'Authorization' => $this->apiKey,
+            'Content-Type' => 'application/json'
+        ])->post("{$this->baseUrl}/orders", $payload);
 
         $response = Http::withHeaders([
             'Authorization' => $this->apiKey,
