@@ -406,7 +406,9 @@ class BiteshipService
                     'quantity' => (int) $totalQuantity,
                     'weight' => 1000 * $totalQuantity
                 ]
-            ]
+            ],
+
+            'status' => 'delivered'
         ];
 
         // 5. Debugging Log (Cek di Laravel.log atau Vercel Logs)
