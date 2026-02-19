@@ -87,6 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/transactions/{id}', [TransactionController::class, 'adminShow']);
     Route::get('/admin/sales-report', [TransactionController::class, 'salesReport']);
     Route::get('/transactions/{id}/tracking', action: [TransactionController::class, 'trackOrder']);
+    Route::put('/admin/transactions/{id}/shipping', [TransactionController::class, 'simulateShipping']);
 });
 
 Route::post('/biteship/callback', [TransactionController::class, 'biteshipCallback']);

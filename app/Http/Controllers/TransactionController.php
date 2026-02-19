@@ -325,11 +325,21 @@ class TransactionController extends Controller
     }
 
     // Melihat semua transaksi (Sisi Admin)
+    // public function allTransactions()
+    // {
+    //     $transactions = Transaction::with(['user', 'details.product'])
+    //         ->latest()
+    //         ->get();
+    //     return response()->json($transactions);
+    // }
+
     public function allTransactions()
     {
-        $transactions = Transaction::with(['user', 'details.product'])
+        // Menambahkan relasi 'address' agar data penerima dan kodepos bisa dirender di Vue
+        $transactions = Transaction::with(['user', 'details.product', 'address'])
             ->latest()
             ->get();
+
         return response()->json($transactions);
     }
 
@@ -694,6 +704,31 @@ class TransactionController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to retrieve tracking data: ' . $e->getMessage()], 500);
         }
+    }
+
+    // Untuk simulasi status pengiriman
+    public function simulateShipping(Request $request, $id)
+    {
+        $request->validate([
+            'tracking_number' => 'nullable|string',
+            'shipping_status' => 'required|string', // allocated, picking_up, dropped, delivered
+        ]);
+
+        $transaction = Transaction::findOrFail($id);
+
+        // Update data logistik
+        $transaction->update([
+            'tracking_number' => $request->tracking_number ?? $transaction->tracking_number,
+            'shipping_status' => $request->shipping_status
+        ]);
+
+        // Jika disimulasikan 'delivered', otomatis ubah status pesanan utama menjadi 'completed'
+        // (Opsional, tergantung alur bisnis Anda. Jika user harus klik "Pesanan Diterima", biarkan tetap 'processing')
+        if ($request->shipping_status === 'delivered' && $transaction->status === 'processing') {
+            // $transaction->update(['status' => 'completed']);
+        }
+
+        return response()->json(['message' => 'Shipping status updated successfully']);
     }
 
     public function biteshipCallback(Request $request)
