@@ -408,7 +408,7 @@ class BiteshipService
                 ]
             ],
 
-            'status' => 'delivered'
+            'status' => 'allocated'
         ];
 
         // 5. Debugging Log (Cek di Laravel.log atau Vercel Logs)
