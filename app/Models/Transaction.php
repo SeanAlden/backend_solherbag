@@ -24,6 +24,7 @@ class Transaction extends Model
         'delivery_date', 
         'delivery_time', 
         'tracking_number',
+        'shipping_status',
         'biteship_order_id',
     ];
 
