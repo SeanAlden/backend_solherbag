@@ -757,11 +757,9 @@ class TransactionController extends Controller
 
         // 2. Jika Anda ingin Auto-Complete transaksi saat kurir mengubah status jadi 'delivered'
         // (Ini opsional, karena Anda sudah punya tombol "Order Received" untuk ditekan user)
-        /*
         if ($status === 'delivered' && $transaction->status === 'processing') {
             $transaction->update(['status' => 'completed']);
         }
-        */
 
         return response()->json(['message' => 'Webhook processed']);
     }
