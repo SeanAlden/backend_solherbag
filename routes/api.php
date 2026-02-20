@@ -117,4 +117,5 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/update-image', [AuthController::class, 'updateAdminImage']);
     Route::post('/update-password', [AuthController::class, 'updateAdminPassword']);
     Route::post('/transactions/tracking/bulk', [TransactionController::class, 'adminBulkTrackOrders']);
+    Route::get('/admin/transactions/{id}/tracking', [TransactionController::class, 'adminTrackOrder']);
 });

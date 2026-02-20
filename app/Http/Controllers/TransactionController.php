@@ -779,6 +779,32 @@ class TransactionController extends Controller
         return response()->json($trackingData);
     }
 
+    // Fungsi khusus Admin untuk mengambil detail tracking 1 order
+    public function adminTrackOrder($id)
+    {
+        $transaction = Transaction::findOrFail($id); // HAPUS filter user_id
+
+        if ($transaction->shipping_method !== 'biteship' || !$transaction->biteship_order_id) {
+            return response()->json(['message' => 'Tracking information is not available yet.'], 400);
+        }
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                'Authorization' => config('services.biteship.api_key')
+            ])->get("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
+
+            $data = $response->json();
+
+            if (isset($data['success']) && $data['success'] === false) {
+                return response()->json(['message' => $data['error'] ?? 'Order not found in Logistics'], 400);
+            }
+
+            return response()->json($data);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to retrieve tracking data: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function biteshipCallback(Request $request)
     {
         // Biteship mengirimkan token otentikasi di Header untuk keamanan
