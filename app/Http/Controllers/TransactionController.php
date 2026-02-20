@@ -744,6 +744,41 @@ class TransactionController extends Controller
         return response()->json($trackingData);
     }
 
+    // Fungsi khusus Admin: Mengambil semua tracking tanpa filter user_id
+    public function adminBulkTrackOrders(Request $request)
+    {
+        $request->validate([
+            'transaction_ids' => 'required|array',
+            'transaction_ids.*' => 'integer|exists:transactions,id'
+        ]);
+
+        // HAPUS filter ->where('user_id') agar Admin bisa melihat semua pesanan
+        $transactions = Transaction::whereIn('id', $request->transaction_ids)
+            ->whereNotNull('biteship_order_id')
+            ->where('shipping_method', 'biteship')
+            ->get();
+
+        $trackingData = [];
+
+        foreach ($transactions as $transaction) {
+            try {
+                $response = \Illuminate\Support\Facades\Http::withHeaders([
+                    'Authorization' => config('services.biteship.api_key')
+                ])->get("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
+
+                if (isset($response['success']) && $response['success'] === true) {
+                    $trackingData[$transaction->id] = $response->json();
+                } else {
+                    $trackingData[$transaction->id] = ['status' => 'pending'];
+                }
+            } catch (\Exception $e) {
+                $trackingData[$transaction->id] = ['status' => 'error fetching data'];
+            }
+        }
+
+        return response()->json($trackingData);
+    }
+
     public function biteshipCallback(Request $request)
     {
         // Biteship mengirimkan token otentikasi di Header untuk keamanan
