@@ -805,6 +805,39 @@ class TransactionController extends Controller
         }
     }
 
+    public function printLabel(Request $request, $id)
+    {
+        $transaction = Transaction::findOrFail($id);
+
+        if (!$transaction->biteship_order_id) {
+            return response()->json(['message' => 'Order ID Biteship tidak ditemukan'], 404);
+        }
+
+        // Ambil query parameter dari Vue (insurance_shown, dll)
+        $queryString = http_build_query($request->all());
+
+        // Target URL Biteship (Perhatikan ini menggunakan api.biteship.com, BUKAN biteship.com)
+        $biteshipUrl = "https://api.biteship.com/v1/orders/{$transaction->biteship_order_id}/labels?{$queryString}";
+
+        try {
+            // Tembak URL label Biteship dengan API Key kita
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                'Authorization' => config('services.biteship.api_key')
+            ])->get($biteshipUrl);
+
+            // Jika sukses, Biteship biasanya mengembalikan langsung file PDF (application/pdf)
+            if ($response->successful()) {
+                return response($response->body(), 200)
+                    ->header('Content-Type', 'application/pdf')
+                    ->header('Content-Disposition', 'inline; filename="Resi-' . $transaction->order_id . '.pdf"');
+            }
+
+            return response()->json(['message' => 'Gagal mengambil resi dari Biteship: ' . $response->body()], 400);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function biteshipCallback(Request $request)
     {
         // Biteship mengirimkan token otentikasi di Header untuk keamanan
