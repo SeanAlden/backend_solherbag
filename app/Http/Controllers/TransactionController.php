@@ -706,29 +706,42 @@ class TransactionController extends Controller
         }
     }
 
-    // Untuk simulasi status pengiriman
-    public function simulateShipping(Request $request, $id)
+    public function bulkTrackOrders(Request $request)
     {
         $request->validate([
-            'tracking_number' => 'nullable|string',
-            'shipping_status' => 'required|string', // allocated, picking_up, dropped, delivered
+            'transaction_ids' => 'required|array',
+            'transaction_ids.*' => 'integer|exists:transactions,id'
         ]);
 
-        $transaction = Transaction::findOrFail($id);
+        // 1. Ambil data transaksi HANYA dengan 1 kali query ke Database (1 Koneksi DB)
+        $transactions = Transaction::where('user_id', $request->user()->id)
+            ->whereIn('id', $request->transaction_ids)
+            ->whereNotNull('biteship_order_id')
+            ->where('shipping_method', 'biteship')
+            ->get();
 
-        // Update data logistik
-        $transaction->update([
-            'tracking_number' => $request->tracking_number ?? $transaction->tracking_number,
-            'shipping_status' => $request->shipping_status
-        ]);
+        $trackingData = [];
 
-        // Jika disimulasikan 'delivered', otomatis ubah status pesanan utama menjadi 'completed'
-        // (Opsional, tergantung alur bisnis Anda. Jika user harus klik "Pesanan Diterima", biarkan tetap 'processing')
-        if ($request->shipping_status === 'delivered' && $transaction->status === 'processing') {
-            // $transaction->update(['status' => 'completed']);
+        // 2. Looping untuk menembak API Biteship satu per satu di sisi Backend
+        foreach ($transactions as $transaction) {
+            try {
+                $response = \Illuminate\Support\Facades\Http::withHeaders([
+                    'Authorization' => config('services.biteship.api_key')
+                ])->get("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
+
+                if (isset($response['success']) && $response['success'] === true) {
+                    $trackingData[$transaction->id] = $response->json();
+                } else {
+                    $trackingData[$transaction->id] = ['status' => 'pending']; // Fallback jika belum teralokasi
+                }
+            } catch (\Exception $e) {
+                // Jangan gagalkan seluruh request jika 1 order error di sisi Biteship
+                $trackingData[$transaction->id] = ['status' => 'error fetching data'];
+            }
         }
 
-        return response()->json(['message' => 'Shipping status updated successfully']);
+        // 3. Kembalikan data dalam bentuk Key-Value (ID Transaksi => Data Biteship)
+        return response()->json($trackingData);
     }
 
     public function biteshipCallback(Request $request)
