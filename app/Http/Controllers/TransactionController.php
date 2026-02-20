@@ -343,6 +343,29 @@ class TransactionController extends Controller
         return response()->json($transactions);
     }
 
+    // public function cancelOrder(Request $request, $id)
+    // {
+    //     $transaction = Transaction::where('user_id', $request->user()->id)->findOrFail($id);
+
+    //     if (!in_array($transaction->status, ['awaiting_payment', 'pending'])) {
+    //         return response()->json(['message' => 'Cannot cancel this order.'], 400);
+    //     }
+
+    //     // Logic expire Xendit invoice bisa ditambahkan disini jika perlu
+
+    //     $transaction->update(['status' => 'cancelled']);
+    //     if ($transaction->payment) {
+    //         $transaction->payment->update(['status' => 'EXPIRED']); // Update status payment lokal
+    //     }
+
+    //     // Kembalikan stok (Optional logic)
+    //     foreach ($transaction->details as $detail) {
+    //         $detail->product->increment('stock', $detail->quantity);
+    //     }
+
+    //     return response()->json(['message' => 'Order cancelled successfully']);
+    // }
+
     public function cancelOrder(Request $request, $id)
     {
         $transaction = Transaction::where('user_id', $request->user()->id)->findOrFail($id);
@@ -351,14 +374,37 @@ class TransactionController extends Controller
             return response()->json(['message' => 'Cannot cancel this order.'], 400);
         }
 
-        // Logic expire Xendit invoice bisa ditambahkan disini jika perlu
+        // [BARU] Logika membatalkan pesanan di server Biteship
+        if ($transaction->shipping_method === 'biteship' && !empty($transaction->biteship_order_id)) {
+            try {
+                $response = \Illuminate\Support\Facades\Http::withHeaders([
+                    'Authorization' => config('services.biteship.api_key')
+                ])->delete("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
 
+                $biteshipData = $response->json();
+
+                // Deteksi jika Biteship menolak pembatalan (misalnya kurir sudah dalam perjalanan / "picking_up")
+                if (isset($biteshipData['success']) && $biteshipData['success'] === false) {
+                    \Illuminate\Support\Facades\Log::warning('Biteship Cancel Error: ' . json_encode($biteshipData));
+
+                    // Anda bisa memblokir pembatalan lokal jika kurir sudah terlanjur jalan
+                    return response()->json([
+                        'message' => 'Cannot cancel: Courier is already processing this order. (' . ($biteshipData['error'] ?? 'Logistics error') . ')'
+                    ], 400);
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Biteship Cancel Exception: ' . $e->getMessage());
+                return response()->json(['message' => 'Failed to connect to logistics provider.'], 500);
+            }
+        }
+
+        // Update status database lokal
         $transaction->update(['status' => 'cancelled']);
         if ($transaction->payment) {
             $transaction->payment->update(['status' => 'EXPIRED']); // Update status payment lokal
         }
 
-        // Kembalikan stok (Optional logic)
+        // Kembalikan stok
         foreach ($transaction->details as $detail) {
             $detail->product->increment('stock', $detail->quantity);
         }
