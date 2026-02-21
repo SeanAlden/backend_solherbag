@@ -621,7 +621,7 @@ class TransactionController extends Controller
 
     public function processRefundUser(Request $request, $id)
     {
-        // 1. Validasi Transaksi
+        // 1. Validasi Transaksi Lokal
         $transaction = Transaction::with('payment')
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
@@ -634,47 +634,46 @@ class TransactionController extends Controller
             return response()->json(['message' => 'Payment data not found.'], 404);
         }
 
-        // --- FUNGSI BANTUAN: Membatalkan Kurir Biteship ---
-        // Dieksekusi hanya jika proses refund (baik otomatis maupun manual) disetujui
-        $cancelBiteshipCourier = function () use ($transaction) {
-            if ($transaction->shipping_method === 'biteship' && !empty($transaction->biteship_order_id)) {
-                try {
-                    // Cek riwayat status pesanan di Biteship terlebih dahulu
-                    $res = \Illuminate\Support\Facades\Http::withHeaders([
-                        'Authorization' => config('services.biteship.api_key')
-                    ])->get("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
+        // --- PRE-CHECK: Validasi Status Kurir Biteship SEBELUM Refund ---
+        $shouldCancelCourier = false;
+        if ($transaction->shipping_method === 'biteship' && !empty($transaction->biteship_order_id)) {
+            try {
+                $res = \Illuminate\Support\Facades\Http::withHeaders([
+                    'Authorization' => config('services.biteship.api_key')
+                ])->get("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
 
-                    if ($res->successful()) {
-                        $data = $res->json();
-                        $biteshipStatus = $data['status'] ?? '';
-                        $history = $data['courier']['history'] ?? [];
+                if ($res->successful()) {
+                    $data = $res->json();
+                    $biteshipStatus = strtolower($data['status'] ?? '');
 
-                        // Validasi apakah status saat ini atau riwayat sebelumnya pernah 'delivered'
-                        $hasDelivered = ($biteshipStatus === 'delivered');
-                        if (!$hasDelivered) {
-                            foreach ($history as $hist) {
-                                if (($hist['status'] ?? '') === 'delivered') {
-                                    $hasDelivered = true;
-                                    break;
-                                }
-                            }
-                        }
+                    // Daftar status di mana pesanan SUDAH TIDAK BISA dibatalkan
+                    $unCancellableStatuses = ['picked', 'dropping_off', 'delivered', 'rejected'];
 
-                        // Jika BELUM PERNAH delivered dan status saat ini bukan cancelled/rejected, lakukan pembatalan!
-                        if (!$hasDelivered && !in_array($biteshipStatus, ['cancelled', 'rejected'])) {
-                            \Illuminate\Support\Facades\Http::withHeaders([
-                                'Authorization' => config('services.biteship.api_key')
-                            ])->delete("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
-                        }
+                    if (in_array($biteshipStatus, $unCancellableStatuses)) {
+                        // CEGAH REFUND JIKA KURIR SUDAH JALAN/SELESAI
+                        return response()->json([
+                            'message' => 'Cannot process refund: The package is already in transit or delivered (Status: ' . strtoupper($biteshipStatus) . '). Please return the item first.'
+                        ], 400);
                     }
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('Biteship cancel on refund error: ' . $e->getMessage());
-                }
-            }
-        };
 
+                    // Jika status masih aman (placed, allocated, picking_up), tandai untuk dibatalkan nanti
+                    if (!in_array($biteshipStatus, ['cancelled'])) {
+                        $shouldCancelCourier = true;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Jika API Biteship down, kita harus berhati-hati.
+                // Untuk keamanan, batalkan proses refund jika kita tidak bisa memastikan status kurir.
+                \Illuminate\Support\Facades\Log::error('Biteship Pre-Check Error: ' . $e->getMessage());
+                return response()->json([
+                    'message' => 'Failed to verify logistics status with Biteship. Please try again later.'
+                ], 500);
+            }
+        }
+
+        // --- EKSEKUSI REFUND KE XENDIT ---
         try {
-            // --- STEP A: Cari Invoice ID ---
+            // STEP A: Cari Invoice ID
             $invoiceApi = new InvoiceApi();
             $invoices = $invoiceApi->getInvoices(null, $transaction->payment->external_id);
 
@@ -684,7 +683,7 @@ class TransactionController extends Controller
 
             $xenditInvoiceId = $invoices[0]['id'];
 
-            // --- STEP B: Coba Refund via API ---
+            // STEP B: Coba Refund via API
             $refundApi = new RefundApi();
 
             $refundRequest = new CreateRefund([
@@ -698,7 +697,7 @@ class TransactionController extends Controller
 
             $result = $refundApi->createRefund(null, null, $refundRequest);
 
-            // Jika sukses (Supported Channel)
+            // Jika Xendit sukses, update database
             DB::transaction(function () use ($transaction) {
                 $transaction->update(['status' => 'refunded']);
                 if ($transaction->payment) {
@@ -706,25 +705,31 @@ class TransactionController extends Controller
                 }
             });
 
-            // Eksekusi pembatalan kurir Biteship setelah refund berhasil dicatat
-            $cancelBiteshipCourier();
+            // STEP C: Batalkan Kurir Biteship (Karena kita sudah pastikan statusnya aman untuk dicancel)
+            if ($shouldCancelCourier) {
+                \Illuminate\Support\Facades\Http::withHeaders([
+                    'Authorization' => config('services.biteship.api_key')
+                ])->delete("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
+            }
 
             return response()->json([
                 'message' => 'Refund processed successfully. Funds returned automatically.',
                 'type' => 'automatic'
             ]);
         } catch (XenditSdkException $e) {
-            // --- STEP C: Handling Khusus Jika Channel Tidak Support Refund ---
+            // --- Handling Khusus Jika Channel Tidak Support Refund ---
             $errorMessage = $e->getMessage();
 
-            // Cek apakah errornya karena "not supported for this channel"
             if (str_contains(strtolower($errorMessage), 'not supported for this channel')) {
-
-                // Update status menjadi 'refund_manual_required' agar Admin tahu
+                // Update status menjadi 'refund_manual_required'
                 $transaction->update(['status' => 'refund_manual_required']);
 
-                // Eksekusi pembatalan kurir Biteship karena pesanan tetap di-refund (secara manual)
-                $cancelBiteshipCourier();
+                // Tetap batalkan kurir Biteship karena pesanan ini di-hold untuk refund manual
+                if ($shouldCancelCourier) {
+                    \Illuminate\Support\Facades\Http::withHeaders([
+                        'Authorization' => config('services.biteship.api_key')
+                    ])->delete("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
+                }
 
                 return response()->json([
                     'message' => 'Automatic refund not supported for this payment method. Status updated to Manual Check.',
@@ -733,16 +738,10 @@ class TransactionController extends Controller
             }
 
             \Illuminate\Support\Facades\Log::error('Xendit Refund Error: ' . $errorMessage);
-
-            // Error Xendit lainnya (Saldo kurang, dll) - JANGAN membatalkan kurir jika uang gagal dikembalikan
-            return response()->json([
-                'message' => 'Xendit Refund Failed: ' . $errorMessage
-            ], 422);
+            return response()->json(['message' => 'Xendit Refund Failed: ' . $errorMessage], 422);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('System Refund Error: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Refund Error: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Refund Error: ' . $e->getMessage()], 500);
         }
     }
 
