@@ -495,6 +495,74 @@ class PaymentController extends Controller
     //     return response()->json(['message' => 'Callback received']);
     // }
 
+    // public function callback(Request $request)
+    // {
+    //     $payment = Payment::where('external_id', $request->external_id)->first();
+    //     if (!$payment) return response()->json(['message' => 'Payment not found'], 404);
+
+    //     $status = $request->status;
+    //     $payment->update(['status' => $status]);
+    //     $transaction = $payment->transaction;
+
+    //     if ($status === 'PAID') {
+
+    //         // [PERBAIKAN] Menangkap Payment Method dari Webhook Xendit
+    //         $paymentMethod = $request->input('payment_method', 'Unknown');
+    //         $paymentChannel = $request->input('payment_channel', '');
+    //         $fullPaymentMethod = trim($paymentMethod . ' ' . $paymentChannel);
+
+    //         $targetTransactionStatus = ($transaction->shipping_method === 'free') ? 'completed' : 'processing';
+
+    //         // Update status dan payment method sekaligus
+    //         $transaction->update([
+    //             'status' => $targetTransactionStatus,
+    //             'payment_method' => $fullPaymentMethod
+    //         ]);
+
+    //         // --- PENCEGAHAN BITESHIP JIKA FREE SHIPPING ---
+    //         if ($transaction->shipping_method === 'biteship') {
+    //             try {
+    //                 $biteship = new BiteshipService();
+    //                 $order = $biteship->createOrder($transaction);
+
+    //                 // Deteksi error manual di sisi controller
+    //                 if (isset($order['success']) && $order['success'] === false) {
+    //                     \Log::error('Gagal Create Order Biteship: ' . json_encode($order));
+    //                 }
+
+    //                 if (isset($order['id'])) {
+    //                     $transaction->update([
+    //                         'biteship_order_id' => $order['id'],
+    //                         'tracking_number' => $order['courier']['waybill_id'] ?? 'Pending'
+    //                     ]);
+    //                 } else {
+    //                     // Simpan alasan gagal Biteship langsung ke Database
+    //                     $errorMsg = $order['error'] ?? ($order['message'] ?? 'Unknown Biteship API Error');
+    //                     $transaction->update([
+    //                         'tracking_number' => 'API ERR: ' . substr($errorMsg, 0, 200)
+    //                     ]);
+    //                     \Log::error('Biteship Create Order Failed: ' . json_encode($order));
+    //                 }
+    //             } catch (\Exception $e) {
+    //                 $transaction->update([
+    //                     'tracking_number' => 'SYS ERR: ' . substr($e->getMessage(), 0, 200)
+    //                 ]);
+    //                 \Log::error('Biteship Exception: ' . $e->getMessage());
+    //             }
+    //         } else {
+    //             $transaction->update(['tracking_number' => 'Internal-Delivery']);
+    //         }
+    //     } elseif ($status === 'EXPIRED' || $status === 'FAILED') {
+    //         if ($transaction->status !== 'cancelled') {
+    //             $transaction->update(['status' => 'cancelled']);
+    //         }
+    //     } elseif ($status === 'PENDING' && $transaction->status === 'awaiting_payment') {
+    //         $transaction->update(['status' => 'pending']);
+    //     }
+
+    //     return response()->json(['message' => 'Callback received']);
+    // }
+
     public function callback(Request $request)
     {
         $payment = Payment::where('external_id', $request->external_id)->first();
@@ -506,24 +574,26 @@ class PaymentController extends Controller
 
         if ($status === 'PAID') {
 
-            // [PERBAIKAN] Menangkap Payment Method dari Webhook Xendit
             $paymentMethod = $request->input('payment_method', 'Unknown');
             $paymentChannel = $request->input('payment_channel', '');
             $fullPaymentMethod = trim($paymentMethod . ' ' . $paymentChannel);
 
+            // Jika shipping_method adalah 'free' (Ambil di Toko), langsung set ke 'completed'.
+            // Jika menggunakan Biteship, set ke 'processing' seperti biasa.
+            $targetTransactionStatus = ($transaction->shipping_method === 'free') ? 'completed' : 'processing';
+
             // Update status dan payment method sekaligus
             $transaction->update([
-                'status' => 'processing',
+                'status' => $targetTransactionStatus,
                 'payment_method' => $fullPaymentMethod
             ]);
 
-            // --- PENCEGAHAN BITESHIP JIKA FREE SHIPPING ---
+            // --- EKSEKUSI PEMESANAN KURIR ---
             if ($transaction->shipping_method === 'biteship') {
                 try {
                     $biteship = new BiteshipService();
                     $order = $biteship->createOrder($transaction);
 
-                    // Deteksi error manual di sisi controller
                     if (isset($order['success']) && $order['success'] === false) {
                         \Log::error('Gagal Create Order Biteship: ' . json_encode($order));
                     }
@@ -534,7 +604,6 @@ class PaymentController extends Controller
                             'tracking_number' => $order['courier']['waybill_id'] ?? 'Pending'
                         ]);
                     } else {
-                        // Simpan alasan gagal Biteship langsung ke Database
                         $errorMsg = $order['error'] ?? ($order['message'] ?? 'Unknown Biteship API Error');
                         $transaction->update([
                             'tracking_number' => 'API ERR: ' . substr($errorMsg, 0, 200)
@@ -548,7 +617,8 @@ class PaymentController extends Controller
                     \Log::error('Biteship Exception: ' . $e->getMessage());
                 }
             } else {
-                $transaction->update(['tracking_number' => 'Internal-Delivery']);
+                // Untuk transaksi 'free' shipping, beri label Internal-Pickup
+                $transaction->update(['tracking_number' => 'In-Store Pickup']);
             }
         } elseif ($status === 'EXPIRED' || $status === 'FAILED') {
             if ($transaction->status !== 'cancelled') {
@@ -558,7 +628,7 @@ class PaymentController extends Controller
             $transaction->update(['status' => 'pending']);
         }
 
-        return response()->json(['message' => 'Callback received']);
+        return response()->json(['message' => 'Callback processed']);
     }
 
     // public function getShippingRates(Request $request)
