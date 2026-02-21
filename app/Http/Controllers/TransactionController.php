@@ -534,6 +534,91 @@ class TransactionController extends Controller
     //     }
     // }
 
+    // public function processRefundUser(Request $request, $id)
+    // {
+    //     // 1. Validasi Transaksi
+    //     $transaction = Transaction::with('payment')
+    //         ->where('user_id', $request->user()->id)
+    //         ->findOrFail($id);
+
+    //     if ($transaction->status !== 'refund_approved') {
+    //         return response()->json(['message' => 'Refund not approved yet.'], 400);
+    //     }
+
+    //     if (!$transaction->payment) {
+    //         return response()->json(['message' => 'Payment data not found.'], 404);
+    //     }
+
+    //     try {
+    //         // --- STEP A: Cari Invoice ID ---
+    //         $invoiceApi = new InvoiceApi();
+    //         $invoices = $invoiceApi->getInvoices(null, $transaction->payment->external_id);
+
+    //         if (empty($invoices) || count($invoices) === 0) {
+    //             throw new \Exception("Invoice not found in Xendit.");
+    //         }
+
+    //         $xenditInvoiceId = $invoices[0]['id'];
+
+    //         // --- STEP B: Coba Refund via API ---
+    //         $refundApi = new RefundApi();
+
+    //         $refundRequest = new CreateRefund([
+    //             'invoice_id' => $xenditInvoiceId,
+    //             'reason' => 'REQUESTED_BY_CUSTOMER',
+    //             'amount' => (int) $transaction->total_amount,
+    //             'metadata' => [
+    //                 'order_id' => $transaction->order_id
+    //             ]
+    //         ]);
+
+    //         $result = $refundApi->createRefund(null, null, $refundRequest);
+
+    //         // Jika sukses (Supported Channel)
+    //         DB::transaction(function () use ($transaction) {
+    //             $transaction->update(['status' => 'refunded']);
+    //             if ($transaction->payment) {
+    //                 $transaction->payment->update(['status' => 'REFUNDED']);
+    //             }
+    //         });
+
+    //         return response()->json([
+    //             'message' => 'Refund processed successfully. Funds returned automatically.',
+    //             'type' => 'automatic'
+    //         ]);
+    //     } catch (XenditSdkException $e) {
+    //         // --- STEP C: Handling Khusus Jika Channel Tidak Support Refund ---
+
+    //         $errorMessage = $e->getMessage();
+
+    //         // Cek apakah errornya karena "not supported for this channel"
+    //         if (str_contains(strtolower($errorMessage), 'not supported for this channel')) {
+
+    //             // Update status menjadi 'refund_manual_required' agar Admin tahu
+    //             // Pastikan Anda menambahkan 'refund_manual_required' ke Enum di database jika pakai Enum
+    //             $transaction->update(['status' => 'refund_manual_required']);
+
+    //             return response()->json([
+    //                 'message' => 'Automatic refund not supported for this payment method. Status updated to Manual Check.',
+    //                 'code' => 'MANUAL_REFUND_NEEDED'
+    //             ], 200); // Return 200 OK tapi dengan pesan bahwa ini butuh manual
+    //         }
+
+    //         Log::error('Xendit Refund Error: ' . $errorMessage);
+
+    //         // Error Xendit lainnya (Saldo kurang, dll)
+    //         return response()->json([
+    //             'message' => 'Xendit Refund Failed: ' . $errorMessage
+    //         ], 422); // 422 Unprocessable Entity
+
+    //     } catch (\Exception $e) {
+    //         Log::error('System Refund Error: ' . $e->getMessage());
+    //         return response()->json([
+    //             'message' => 'Refund Error: ' . $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
     public function processRefundUser(Request $request, $id)
     {
         // 1. Validasi Transaksi
@@ -548,6 +633,45 @@ class TransactionController extends Controller
         if (!$transaction->payment) {
             return response()->json(['message' => 'Payment data not found.'], 404);
         }
+
+        // --- FUNGSI BANTUAN: Membatalkan Kurir Biteship ---
+        // Dieksekusi hanya jika proses refund (baik otomatis maupun manual) disetujui
+        $cancelBiteshipCourier = function () use ($transaction) {
+            if ($transaction->shipping_method === 'biteship' && !empty($transaction->biteship_order_id)) {
+                try {
+                    // Cek riwayat status pesanan di Biteship terlebih dahulu
+                    $res = \Illuminate\Support\Facades\Http::withHeaders([
+                        'Authorization' => config('services.biteship.api_key')
+                    ])->get("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
+
+                    if ($res->successful()) {
+                        $data = $res->json();
+                        $biteshipStatus = $data['status'] ?? '';
+                        $history = $data['courier']['history'] ?? [];
+
+                        // Validasi apakah status saat ini atau riwayat sebelumnya pernah 'delivered'
+                        $hasDelivered = ($biteshipStatus === 'delivered');
+                        if (!$hasDelivered) {
+                            foreach ($history as $hist) {
+                                if (($hist['status'] ?? '') === 'delivered') {
+                                    $hasDelivered = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Jika BELUM PERNAH delivered dan status saat ini bukan cancelled/rejected, lakukan pembatalan!
+                        if (!$hasDelivered && !in_array($biteshipStatus, ['cancelled', 'rejected'])) {
+                            \Illuminate\Support\Facades\Http::withHeaders([
+                                'Authorization' => config('services.biteship.api_key')
+                            ])->delete("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Biteship cancel on refund error: ' . $e->getMessage());
+                }
+            }
+        };
 
         try {
             // --- STEP A: Cari Invoice ID ---
@@ -582,37 +706,40 @@ class TransactionController extends Controller
                 }
             });
 
+            // Eksekusi pembatalan kurir Biteship setelah refund berhasil dicatat
+            $cancelBiteshipCourier();
+
             return response()->json([
                 'message' => 'Refund processed successfully. Funds returned automatically.',
                 'type' => 'automatic'
             ]);
         } catch (XenditSdkException $e) {
             // --- STEP C: Handling Khusus Jika Channel Tidak Support Refund ---
-
             $errorMessage = $e->getMessage();
 
             // Cek apakah errornya karena "not supported for this channel"
             if (str_contains(strtolower($errorMessage), 'not supported for this channel')) {
 
                 // Update status menjadi 'refund_manual_required' agar Admin tahu
-                // Pastikan Anda menambahkan 'refund_manual_required' ke Enum di database jika pakai Enum
                 $transaction->update(['status' => 'refund_manual_required']);
+
+                // Eksekusi pembatalan kurir Biteship karena pesanan tetap di-refund (secara manual)
+                $cancelBiteshipCourier();
 
                 return response()->json([
                     'message' => 'Automatic refund not supported for this payment method. Status updated to Manual Check.',
                     'code' => 'MANUAL_REFUND_NEEDED'
-                ], 200); // Return 200 OK tapi dengan pesan bahwa ini butuh manual
+                ], 200);
             }
 
-            Log::error('Xendit Refund Error: ' . $errorMessage);
+            \Illuminate\Support\Facades\Log::error('Xendit Refund Error: ' . $errorMessage);
 
-            // Error Xendit lainnya (Saldo kurang, dll)
+            // Error Xendit lainnya (Saldo kurang, dll) - JANGAN membatalkan kurir jika uang gagal dikembalikan
             return response()->json([
                 'message' => 'Xendit Refund Failed: ' . $errorMessage
-            ], 422); // 422 Unprocessable Entity
-
+            ], 422);
         } catch (\Exception $e) {
-            Log::error('System Refund Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('System Refund Error: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Refund Error: ' . $e->getMessage()
             ], 500);
