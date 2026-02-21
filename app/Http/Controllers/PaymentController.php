@@ -234,6 +234,8 @@ class PaymentController extends Controller
         }
 
         // Penambahan Ongkir ke Xendit Invoice
+        $basePriceXendit = 0;
+        
         if ($transaction->shipping_cost > 0) {
             // Xendit butuh harga satuan (Base Price), jadi kita bagi kembali dari total_shipping_cost yang tersimpan
             $basePriceXendit = $transaction->shipping_cost / $totalQuantity;
