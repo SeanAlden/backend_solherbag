@@ -254,8 +254,8 @@ class TransactionController extends Controller
     {
         $transaction = Transaction::where('user_id', $request->user()->id)->findOrFail($id);
 
-        // Refund bisa diajukan saat processing (sudah bayar) atau completed
-        if (!in_array($transaction->status, ['processing', 'completed'])) {
+        // Refund bisa diajukan saat status ini
+        if (!in_array($transaction->status, ['completed', 'shipping_failed'])) {
             return response()->json(['message' => 'Cannot request refund for this order state.'], 400);
         }
 
@@ -417,7 +417,7 @@ class TransactionController extends Controller
 
                     // $unCancellableStatuses = ['picked', 'dropping_off', 'delivered', 'rejected', 'disposed', 'return_in_transit', 'returned'];
 
-                    $unCancellableStatuses = ['picked', 'dropping_off', 'rejected', 'return_in_transit'];
+                    $unCancellableStatuses = ['picked', 'dropping_off', 'rejected', 'return_in_transit','returned'];
 
                     if (in_array($biteshipStatus, $unCancellableStatuses)) {
                         return response()->json([
