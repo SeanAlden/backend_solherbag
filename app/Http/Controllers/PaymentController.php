@@ -35,6 +35,12 @@ class PaymentController extends Controller
         $transaction = Transaction::with(['user', 'details.product', 'payment'])
             ->findOrFail($request->transaction_id);
 
+        if ($transaction->payment && $transaction->payment->status === 'pending' && !empty($transaction->payment->checkout_url)) {
+            return response()->json([
+                'checkout_url' => $transaction->payment->checkout_url
+            ]);
+        }
+
         // [PERBAIKAN LOGIKA] Hitung Total Quantity Barang
         $totalQuantity = $transaction->details->sum('quantity') ?: 1;
 
