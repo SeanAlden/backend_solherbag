@@ -415,9 +415,7 @@ class TransactionController extends Controller
                     $data = $res->json();
                     $biteshipStatus = strtolower($data['status'] ?? '');
 
-                    // $unCancellableStatuses = ['picked', 'dropping_off', 'delivered', 'rejected', 'disposed', 'return_in_transit', 'returned'];
-
-                    $unCancellableStatuses = ['picked', 'dropping_off', 'rejected', 'return_in_transit','returned'];
+                    $unCancellableStatuses = ['picked', 'dropping_off', 'delivered', 'rejected', 'return_in_transit','returned'];
 
                     if (in_array($biteshipStatus, $unCancellableStatuses)) {
                         return response()->json([
