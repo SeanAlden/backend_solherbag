@@ -40,10 +40,10 @@ class TransactionController extends Controller
             $totalAmount = $cartItems->sum('gross_amount');
             $orderId = 'SOL-' . now()->format('Ymd') . '-' . strtoupper(Str::random(6));
 
-            // Hitung poin: Misal 1 Poin per Rp 10.000 dari total belanja produk
+            // Hitung poin: Misal 1 Poin per Rp 100.000 dari total belanja produk
             $earnedPoints = 0;
             if ($user->is_membership) {
-                $earnedPoints = floor($totalAmount / 10000);
+                $earnedPoints = floor($totalAmount / 100000);
             }
 
             $transaction = Transaction::create([
