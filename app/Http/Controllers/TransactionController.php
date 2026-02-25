@@ -477,6 +477,20 @@ class TransactionController extends Controller
                 if ($transaction->payment) {
                     $transaction->payment->update(['status' => 'REFUNDED']);
                 }
+
+                // Pastikan user adalah member dan transaksi ini sebelumnya menghasilkan poin
+                if ($transaction->point > 0 && $transaction->user->is_membership) {
+                    // Cegah poin user menjadi minus jika dia sudah terlanjur memakainya
+                    $currentPoints = $transaction->user->point;
+                    $pointsToDeduct = min($currentPoints, $transaction->point);
+
+                    if ($pointsToDeduct > 0) {
+                        $transaction->user->decrement('point', $pointsToDeduct);
+                    }
+
+                    // Nolkan poin di transaksi agar tidak ditarik ganda di masa depan
+                    $transaction->update(['point' => 0]);
+                }
             });
 
             return response()->json([

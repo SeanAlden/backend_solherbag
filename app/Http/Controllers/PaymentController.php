@@ -29,7 +29,8 @@ class PaymentController extends Controller
             'shipping_cost' => 'nullable|numeric', // Ini adalah Harga Dasar (Base Rate) dari Frontend
             'delivery_type' => 'nullable|string|in:now,later,scheduled',
             'delivery_date' => 'nullable|date',
-            'delivery_time' => 'nullable|date_format:H:i'
+            'delivery_time' => 'nullable|date_format:H:i',
+            'use_points' => 'nullable|integer|min:0'
         ]);
 
         $transaction = Transaction::with(['user', 'details.product', 'payment'])
@@ -69,6 +70,26 @@ class PaymentController extends Controller
             ]);
         }
 
+        $user = $request->user();
+        $pointsUsed = 0;
+        $pointDiscountAmount = 0;
+        $conversionRate = 1000; // 1 Poin = Rp 1.000 Diskon
+
+        if ($request->use_points > 0 && $user->is_membership) {
+            // Pastikan user tidak menggunakan poin lebih dari yang mereka miliki
+            $pointsUsed = min($request->use_points, $user->point);
+            $pointDiscountAmount = $pointsUsed * $conversionRate;
+
+            // Pastikan diskon poin tidak melebihi harga produk (Subtotal)
+            // Biasanya ongkir tidak boleh dipotong pakai poin, hanya harga barang
+            $pointDiscountAmount = min($pointDiscountAmount, $transaction->total_amount);
+
+            // Jika poin jadi dipakai, potong dari saldo user SEKARANG
+            if ($pointsUsed > 0) {
+                $user->decrement('point', $pointsUsed);
+            }
+        }
+
         $externalId = 'PAY-' . $transaction->order_id . ($transaction->payment ? '-' . time() : '');
 
         $items = [];
@@ -81,14 +102,22 @@ class PaymentController extends Controller
             ];
         }
 
+        // Tambahkan item "Diskon Poin" ke Invoice Xendit sebagai nilai minus
+        if ($pointDiscountAmount > 0) {
+            $items[] = [
+                'name' => 'Loyalty Point Discount (' . $pointsUsed . ' Pts)',
+                'quantity' => 1,
+                'price' => -(int) $pointDiscountAmount, // Nilai minus agar memotong total tagihan Xendit
+                'category' => 'DISCOUNT'
+            ];
+        }
+
         // Penambahan Ongkir ke Xendit Invoice
         $basePriceXendit = 0;
-
         if ($transaction->shipping_cost > 0) {
             // Xendit butuh harga satuan (Base Price), jadi kita bagi kembali dari total_shipping_cost yang tersimpan
             $basePriceXendit = $transaction->shipping_cost / $totalQuantity;
             // $basePriceXendit = $transaction->shipping_cost;
-
             $items[] = [
                 'name' => 'Shipping Cost (' . $transaction->courier_company . ')',
                 'quantity' => (int) $totalQuantity,
@@ -97,10 +126,14 @@ class PaymentController extends Controller
             ];
         }
 
+        // Hitung Total Pembayaran Akhir
+        $finalAmount = (int) $transaction->total_amount + ($basePriceXendit * $totalQuantity) - $pointDiscountAmount;
+
         $invoiceRequest = new CreateInvoiceRequest([
             'external_id' => $externalId,
             'payer_email' => $transaction->user->email,
-            'amount' => (int) $transaction->total_amount + $basePriceXendit * $totalQuantity, // Sekarang nilainya sudah tepat secara matematika!
+            // 'amount' => (int) $transaction->total_amount + $basePriceXendit * $totalQuantity, // Sekarang nilainya sudah tepat secara matematika!
+            'amount' => $finalAmount,
             'description' => 'Payment for Order ' . $transaction->order_id,
             'items' => $items,
             'success_redirect_url' => config('app.frontend_url')
