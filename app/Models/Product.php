@@ -11,6 +11,8 @@ class Product extends Model
         'code',
         'name',
         'image',
+        'variant_images',
+        'variant_video',
         'price',
         'discount_price',
         'stock',
@@ -18,6 +20,10 @@ class Product extends Model
         'care',
         'design',
         'status'
+    ];
+
+    protected $casts = [
+        'variant_images' => 'array',
     ];
 
     public function category()
