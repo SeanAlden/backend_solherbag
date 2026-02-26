@@ -25,6 +25,12 @@ class CategoryService
         });
     }
 
+    // [BARU] Fungsi untuk mengambil detail kategori berserta relasi products
+    public function getCategoryById($id)
+    {
+        return Category::with('products')->findOrFail($id);
+    }
+
     public function createCategory(array $data)
     {
         $category = Category::create($data);

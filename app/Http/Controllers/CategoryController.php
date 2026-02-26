@@ -73,8 +73,8 @@ class CategoryController extends Controller
         $category = $this->categoryService->createCategory($request->validated());
 
         return (new CategoryResource($category))
-                ->response()
-                ->setStatusCode(201);
+            ->response()
+            ->setStatusCode(201);
     }
 
     public function update(CategoryRequest $request, $id): CategoryResource
@@ -106,15 +106,10 @@ class CategoryController extends Controller
         }
     }
 
-    public function show($id)
+    // Refactor fungsi show
+    public function show($id): CategoryResource
     {
-        // Mengambil kategori spesifik beserta semua produk (aktif dan inaktif) di dalamnya
-        $category = Category::with('products')->findOrFail($id);
-
-        return response()->json([
-            'success' => true,
-            'data'    => $category
-        ], 200);
+        $category = $this->categoryService->getCategoryById($id);
+        return new CategoryResource($category);
     }
 }
-

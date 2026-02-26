@@ -22,6 +22,8 @@ class CategoryResource extends JsonResource
                 'description' => $this->description ?? 'No description provided.',
                 'slug' => str($this->name)->slug(),
             ],
+            // [BARU] Load products hanya jika dipanggil dengan `with('products')`
+            'products' => $this->whenLoaded('products'),
             'timestamps' => [
                 'created_at' => $this->created_at?->toDateTimeString(),
             ]
