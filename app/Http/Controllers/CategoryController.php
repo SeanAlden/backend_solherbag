@@ -46,6 +46,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Services\CategoryService;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
@@ -78,7 +79,7 @@ class CategoryController extends Controller
 
     public function update(CategoryRequest $request, $id): CategoryResource
     {
-        $category = \App\Models\Category::findOrFail($id);
+        $category = Category::findOrFail($id);
         $updated = $this->categoryService->updateCategory($category, $request->validated());
 
         return new CategoryResource($updated);
@@ -103,6 +104,17 @@ class CategoryController extends Controller
 
             return response()->json(['message' => 'Internal Server Error'], 500);
         }
+    }
+
+    public function show($id)
+    {
+        // Mengambil kategori spesifik beserta semua produk (aktif dan inaktif) di dalamnya
+        $category = Category::with('products')->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $category
+        ], 200);
     }
 }
 
