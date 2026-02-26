@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\CoaController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\HomeController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\S3UploadController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\CategoryCoaController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\AddressController; // Pastikan ini di-import
 
@@ -123,6 +125,11 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/transactions/{id}/tracking', [TransactionController::class, 'adminTrackOrder']);
     Route::get('/transactions/{id}/print-label', [TransactionController::class, 'printLabel']);
     Route::post('/s3/presign', [S3UploadController::class, 'presign']);
+
+    // Accounting Routes
+    Route::apiResource('category-coas', CategoryCoaController::class);
+    Route::apiResource('coas', CoaController::class);
+    Route::post('coas/{id}/post', [CoaController::class, 'postCoa']);
 });
 
 
