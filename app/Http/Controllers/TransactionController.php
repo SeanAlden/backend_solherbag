@@ -80,13 +80,59 @@ class TransactionController extends Controller
         });
     }
 
+    // public function index(Request $request)
+    // {
+    //     // Eager load 'payment' untuk mendapatkan checkout_url
+    //     $transactions = Transaction::with(['details.product', 'payment'])
+    //         ->where('user_id', $request->user()->id)
+    //         ->latest()
+    //         ->get();
+    //     return response()->json($transactions);
+    // }
+
     public function index(Request $request)
     {
-        // Eager load 'payment' untuk mendapatkan checkout_url
         $transactions = Transaction::with(['details.product', 'payment'])
             ->where('user_id', $request->user()->id)
             ->latest()
             ->get();
+
+        // [PERBAIKAN] Auto-Cancel jika waktu kedaluwarsa dilewati
+        $dataChanged = false;
+        foreach ($transactions as $transaction) {
+            if (in_array($transaction->status, ['awaiting_payment', 'pending'])) {
+                // Tentukan Waktu Acuan: Jika pending pakai invoice Xendit, jika awaiting pakai waktu order dibuat
+                $referenceTime = ($transaction->status === 'pending' && $transaction->payment)
+                    ? $transaction->payment->created_at
+                    : $transaction->created_at;
+
+                // Cek apakah selisih waktu sudah lebih dari 24 jam
+                if (\Carbon\Carbon::parse($referenceTime)->addHours(24)->isPast()) {
+                    $transaction->update(['status' => 'cancelled']);
+
+                    if ($transaction->payment && $transaction->payment->status !== 'EXPIRED') {
+                        $transaction->payment->update(['status' => 'EXPIRED']);
+                    }
+
+                    // Kembalikan Stok Barang
+                    foreach ($transaction->details as $detail) {
+                        if ($detail->product) {
+                            $detail->product->increment('stock', $detail->quantity);
+                        }
+                    }
+                    $dataChanged = true;
+                }
+            }
+        }
+
+        // Re-Fetch data jika ada yang dibatalkan paksa
+        if ($dataChanged) {
+            $transactions = Transaction::with(['details.product', 'payment'])
+                ->where('user_id', $request->user()->id)
+                ->latest()
+                ->get();
+        }
+
         return response()->json($transactions);
     }
 
@@ -99,12 +145,52 @@ class TransactionController extends Controller
     //     return response()->json($transactions);
     // }
 
+    // public function allTransactions()
+    // {
+    //     // Menambahkan relasi 'address' agar data penerima dan kodepos bisa dirender di Vue
+    //     $transactions = Transaction::with(['user', 'details.product', 'address'])
+    //         ->latest()
+    //         ->get();
+
+    //     return response()->json($transactions);
+    // }
+
     public function allTransactions()
     {
-        // Menambahkan relasi 'address' agar data penerima dan kodepos bisa dirender di Vue
-        $transactions = Transaction::with(['user', 'details.product', 'address'])
+        $transactions = Transaction::with(['user', 'details.product', 'address', 'payment'])
             ->latest()
             ->get();
+
+        // [PERBAIKAN] Lakukan hal yang sama untuk tampilan Admin
+        $dataChanged = false;
+        foreach ($transactions as $transaction) {
+            if (in_array($transaction->status, ['awaiting_payment', 'pending'])) {
+                $referenceTime = ($transaction->status === 'pending' && $transaction->payment)
+                    ? $transaction->payment->created_at
+                    : $transaction->created_at;
+
+                if (\Carbon\Carbon::parse($referenceTime)->addHours(24)->isPast()) {
+                    $transaction->update(['status' => 'cancelled']);
+
+                    if ($transaction->payment && $transaction->payment->status !== 'EXPIRED') {
+                        $transaction->payment->update(['status' => 'EXPIRED']);
+                    }
+
+                    foreach ($transaction->details as $detail) {
+                        if ($detail->product) {
+                            $detail->product->increment('stock', $detail->quantity);
+                        }
+                    }
+                    $dataChanged = true;
+                }
+            }
+        }
+
+        if ($dataChanged) {
+            $transactions = Transaction::with(['user', 'details.product', 'address', 'payment'])
+                ->latest()
+                ->get();
+        }
 
         return response()->json($transactions);
     }
