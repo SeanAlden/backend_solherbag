@@ -89,9 +89,9 @@ class InvoiceController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where('no_invoice', 'like', "%{$search}%")
-                  ->orWhereHas('supplier', function($q) use ($search) {
-                      $q->where('name', 'like', "%{$search}%");
-                  });
+                ->orWhereHas('supplier', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%");
+                });
         }
         if ($request->filled('payment_status') && $request->payment_status !== 'All') {
             $query->where('payment_status', $request->payment_status);
@@ -101,6 +101,38 @@ class InvoiceController extends Controller
         return response()->json($invoices);
     }
 
+    // public function storeInvoice(Request $request)
+    // {
+    //     $request->validate([
+    //         'no_invoice' => 'required|unique:invoice_suppliers',
+    //         'supplier_id' => 'required|exists:supplier_data,id',
+    //         'amount' => 'required|numeric',
+    //         'kredit_coa_id' => 'required|exists:coas,id',
+    //         'debit_coa_id' => 'required|exists:coas,id',
+    //         'image_invoice' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
+    //     ]);
+
+    //     try {
+    //         $data = $request->except('image_invoice');
+
+    //         if ($request->hasFile('image_invoice')) {
+    //             // Simpan ke storage/app/public/invoice_images
+    //             $path = $request->file('image_invoice')->store('invoice_images', 'public');
+    //             $data['image_invoice'] = '/storage/' . $path;
+    //         }
+
+    //         // Fallback default date
+    //         if (empty($data['date'])) $data['date'] = now();
+    //         if (empty($data['deadline_invoice'])) $data['deadline_invoice'] = now()->addDays(30);
+
+    //         $invoice = InvoiceSupplier::create($data);
+    //         return response()->json($invoice, 201);
+    //     } catch (\Exception $e) {
+    //         Log::error('Invoice Store Error: ' . $e->getMessage());
+    //         return response()->json(['message' => 'Failed to add invoice.'], 500);
+    //     }
+    // }
+
     public function storeInvoice(Request $request)
     {
         $request->validate([
@@ -109,61 +141,141 @@ class InvoiceController extends Controller
             'amount' => 'required|numeric',
             'kredit_coa_id' => 'required|exists:coas,id',
             'debit_coa_id' => 'required|exists:coas,id',
-            'image_invoice' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'image_invoice' => 'required|string',
         ]);
 
-        try {
-            $data = $request->except('image_invoice');
-            
-            if ($request->hasFile('image_invoice')) {
-                // Simpan ke storage/app/public/invoice_images
-                $path = $request->file('image_invoice')->store('invoice_images', 'public');
-                $data['image_invoice'] = '/storage/' . $path;
-            }
+        $data = $request->all();
 
-            // Fallback default date
-            if (empty($data['date'])) $data['date'] = now();
-            if (empty($data['deadline_invoice'])) $data['deadline_invoice'] = now()->addDays(30);
+        if (empty($data['date']))
+            $data['date'] = now();
 
-            $invoice = InvoiceSupplier::create($data);
-            return response()->json($invoice, 201);
-        } catch (\Exception $e) {
-            Log::error('Invoice Store Error: ' . $e->getMessage());
-            return response()->json(['message' => 'Failed to add invoice.'], 500);
-        }
+        if (empty($data['deadline_invoice']))
+            $data['deadline_invoice'] = now()->addDays(30);
+
+        $invoice = InvoiceSupplier::create($data);
+
+        return response()->json($invoice, 201);
     }
+
+    // public function updateInvoice(Request $request, $id)
+    // {
+    //     $invoice = InvoiceSupplier::findOrFail($id);
+
+    //     $request->validate([
+    //         'no_invoice' => 'required|unique:invoice_suppliers,no_invoice,' . $id,
+    //         'supplier_id' => 'required|exists:supplier_data,id',
+    //         'amount' => 'required|numeric',
+    //         'kredit_coa_id' => 'required|exists:coas,id',
+    //         'debit_coa_id' => 'required|exists:coas,id',
+    //         'image_invoice' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+    //     ]);
+
+    //     try {
+    //         $data = $request->except(['image_invoice', '_method']);
+
+    //         if ($request->hasFile('image_invoice')) {
+    //             if ($invoice->image_invoice) {
+    //                 $oldPath = str_replace('/storage/', '', $invoice->image_invoice);
+    //                 Storage::disk('public')->delete($oldPath);
+    //             }
+    //             $path = $request->file('image_invoice')->store('invoice_images', 'public');
+    //             $data['image_invoice'] = '/storage/' . $path;
+    //         }
+
+    //         $invoice->update($data);
+    //         return response()->json($invoice);
+    //     } catch (\Exception $e) {
+    //         return response()->json(['message' => 'Failed to update invoice.'], 500);
+    //     }
+    // }
 
     public function updateInvoice(Request $request, $id)
     {
         $invoice = InvoiceSupplier::findOrFail($id);
 
         $request->validate([
-            'no_invoice' => 'required|unique:invoice_suppliers,no_invoice,'.$id,
+            'no_invoice' => "required|unique:invoice_suppliers,no_invoice,$id",
             'supplier_id' => 'required|exists:supplier_data,id',
             'amount' => 'required|numeric',
-            'kredit_coa_id' => 'required|exists:coas,id',
-            'debit_coa_id' => 'required|exists:coas,id',
-            'image_invoice' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'image_invoice' => 'nullable|string'
         ]);
 
-        try {
-            $data = $request->except(['image_invoice', '_method']);
-            
-            if ($request->hasFile('image_invoice')) {
-                if ($invoice->image_invoice) {
-                    $oldPath = str_replace('/storage/', '', $invoice->image_invoice);
-                    Storage::disk('public')->delete($oldPath);
-                }
-                $path = $request->file('image_invoice')->store('invoice_images', 'public');
-                $data['image_invoice'] = '/storage/' . $path;
-            }
+        $data = $request->all();
 
-            $invoice->update($data);
-            return response()->json($invoice);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Failed to update invoice.'], 500);
+        /*
+        DELETE OLD FILE IF CHANGED
+        */
+        if (
+            $request->image_invoice &&
+            $invoice->image_invoice !== $request->image_invoice
+        ) {
+
+            $oldPath = str_replace(
+                Storage::disk('s3')->url(''),
+                '',
+                $invoice->image_invoice
+            );
+
+            Storage::disk('s3')->delete($oldPath);
         }
+
+        $invoice->update($data);
+
+        return response()->json($invoice);
     }
+
+    // public function processPayment(Request $request, $id)
+    // {
+    //     $invoice = InvoiceSupplier::findOrFail($id);
+
+    //     $request->validate([
+    //         'payment_date' => 'required|date',
+    //         'payment_method' => 'required',
+    //         'kredit_coa_id' => 'required|exists:coas,id',
+    //         'debit_coa_id' => 'required|exists:coas,id',
+    //         'amount' => 'required|numeric|min:1',
+    //         'image_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+    //     ]);
+
+    //     if ($invoice->payment_status == 'Paid') {
+    //         return response()->json(['message' => 'Invoice is already paid.'], 400);
+    //     }
+
+    //     try {
+    //         DB::beginTransaction();
+
+    //         $proofPath = null;
+    //         if ($request->hasFile('image_proof')) {
+    //             $path = $request->file('image_proof')->store('payment_proofs', 'public');
+    //             $proofPath = '/storage/' . $path;
+    //         }
+
+    //         $invoice->update([
+    //             'payment_status' => 'Paid',
+    //             'payment_method' => $request->payment_method,
+    //             'kredit_coa_id' => $request->kredit_coa_id,
+    //             'debit_coa_id' => $request->debit_coa_id,
+    //             'image_proof' => $proofPath
+    //         ]);
+
+    //         PaymentHistory::create([
+    //             'invoice_id' => $invoice->id,
+    //             'amount' => $request->amount,
+    //             'payment_date' => $request->payment_date,
+    //             'payment_method' => $request->payment_method,
+    //             'reference_number' => $request->reference_number,
+    //             'notes' => $request->notes,
+    //             'processed_by' => auth()->id(),
+    //         ]);
+
+    //         DB::commit();
+    //         return response()->json(['message' => 'Payment processed successfully!']);
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+    //         Log::error('Payment error: ' . $e->getMessage());
+    //         return response()->json(['message' => 'Failed to process payment.'], 500);
+    //     }
+    // }
 
     public function processPayment(Request $request, $id)
     {
@@ -172,31 +284,32 @@ class InvoiceController extends Controller
         $request->validate([
             'payment_date' => 'required|date',
             'payment_method' => 'required',
-            'kredit_coa_id' => 'required|exists:coas,id',
-            'debit_coa_id' => 'required|exists:coas,id',
             'amount' => 'required|numeric|min:1',
-            'image_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120', 
+            'image_proof' => 'required|string'
         ]);
 
-        if ($invoice->payment_status == 'Paid') {
-            return response()->json(['message' => 'Invoice is already paid.'], 400);
-        }
+        DB::beginTransaction();
 
         try {
-            DB::beginTransaction();
 
-            $proofPath = null;
-            if ($request->hasFile('image_proof')) {
-                $path = $request->file('image_proof')->store('payment_proofs', 'public');
-                $proofPath = '/storage/' . $path;
+            if (
+                $invoice->image_proof &&
+                $invoice->image_proof !== $request->image_proof
+            ) {
+
+                $oldPath = str_replace(
+                    Storage::disk('s3')->url(''),
+                    '',
+                    $invoice->image_proof
+                );
+
+                Storage::disk('s3')->delete($oldPath);
             }
 
             $invoice->update([
                 'payment_status' => 'Paid',
                 'payment_method' => $request->payment_method,
-                'kredit_coa_id' => $request->kredit_coa_id,
-                'debit_coa_id' => $request->debit_coa_id,
-                'image_proof' => $proofPath
+                'image_proof' => $request->image_proof
             ]);
 
             PaymentHistory::create([
@@ -205,16 +318,18 @@ class InvoiceController extends Controller
                 'payment_date' => $request->payment_date,
                 'payment_method' => $request->payment_method,
                 'reference_number' => $request->reference_number,
-                'notes' => $request->notes,
                 'processed_by' => auth()->id(),
             ]);
 
             DB::commit();
-            return response()->json(['message' => 'Payment processed successfully!']);
+
+            return response()->json([
+                'message' => 'Payment processed'
+            ]);
         } catch (\Exception $e) {
+
             DB::rollBack();
-            Log::error('Payment error: ' . $e->getMessage());
-            return response()->json(['message' => 'Failed to process payment.'], 500);
+            throw $e;
         }
     }
 
@@ -222,9 +337,30 @@ class InvoiceController extends Controller
     {
         try {
             $invoice = InvoiceSupplier::findOrFail($id);
-            if ($invoice->image_invoice) Storage::disk('public')->delete(str_replace('/storage/', '', $invoice->image_invoice));
-            if ($invoice->image_proof) Storage::disk('public')->delete(str_replace('/storage/', '', $invoice->image_proof));
-            
+            // if ($invoice->image_invoice) Storage::disk('public')->delete(str_replace('/storage/', '', $invoice->image_invoice));
+
+            if ($invoice->image_invoice) {
+                Storage::disk('s3')->delete(
+                    str_replace(
+                        Storage::disk('s3')->url(''),
+                        '',
+                        $invoice->image_invoice
+                    )
+                );
+            }
+
+            // if ($invoice->image_proof) Storage::disk('public')->delete(str_replace('/storage/', '', $invoice->image_proof));
+
+            if ($invoice->image_proof) {
+                Storage::disk('s3')->delete(
+                    str_replace(
+                        Storage::disk('s3')->url(''),
+                        '',
+                        $invoice->image_proof
+                    )
+                );
+            }
+
             $invoice->delete();
             return response()->json(['message' => 'Invoice deleted successfully']);
         } catch (\Exception $e) {
