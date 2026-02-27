@@ -124,7 +124,6 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/transactions/tracking/bulk', [TransactionController::class, 'adminBulkTrackOrders']);
     Route::get('/transactions/{id}/tracking', [TransactionController::class, 'adminTrackOrder']);
     Route::get('/transactions/{id}/print-label', [TransactionController::class, 'printLabel']);
-    Route::post('/transactions/{id}/shipping-action', [TransactionController::class, 'adminShippingAction']);
     Route::post('/s3/presign', [S3UploadController::class, 'presign']);
 
     // Accounting Routes
