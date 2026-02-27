@@ -963,33 +963,72 @@ class TransactionController extends Controller
         }
 
         // 2. Aksi: Alokasi (Panggil Kurir Biteship)
+        // if ($action === 'allocate') {
+        //     try {
+        //         // Tembak API Biteship dengan Header lengkap
+        //         $response = \Illuminate\Support\Facades\Http::withHeaders([
+        //             'Authorization' => config('services.biteship.api_key'),
+        //             'Content-Type' => 'application/json' // INI SANGAT PENTING
+        //         ])->post("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id, [
+        //             'status' => 'allocated'
+        //         ]);
+
+        //         $biteshipData = $response->json();
+
+        //         // CEK KETAT: Jika response dari Biteship GAGAL (HTTP != 20x atau success == false)
+        //         if (!$response->successful() || (isset($biteshipData['success']) && $biteshipData['success'] === false)) {
+        //             $errorMsg = $biteshipData['error'] ?? $response->body();
+        //             \Illuminate\Support\Facades\Log::error('Biteship Allocate Error: ' . $errorMsg);
+
+        //             // Lempar error ke frontend, JANGAN update DB lokal
+        //             return response()->json([
+        //                 'message' => 'Gagal mengalokasikan kurir di Biteship. Detail: ' . $errorMsg
+        //             ], 400);
+        //         }
+
+        //         // JIKA BITESIP SUKSES, baru update DB lokal
+        //         $transaction->update(['shipping_status' => 'allocated']);
+        //         return response()->json(['message' => 'Kurir berhasil dialokasikan.']);
+
+        //     } catch (\Exception $e) {
+        //         \Illuminate\Support\Facades\Log::error('Biteship Allocate Exception: ' . $e->getMessage());
+        //         return response()->json(['message' => 'Terjadi kesalahan sistem saat menghubungi logistik.'], 500);
+        //     }
+        // }
+
         if ($action === 'allocate') {
             try {
-                // Tembak API Biteship dengan Header lengkap
+                // [PERBAIKAN KRUSIAL] 
+                // Kirim status 'confirmed' ke Biteship untuk request pickup.
+                // Biteship akan merespons dengan 'confirmed' lalu mencari kurir, 
+                // dan nanti webhook akan mengubahnya menjadi 'allocated'.
                 $response = \Illuminate\Support\Facades\Http::withHeaders([
                     'Authorization' => config('services.biteship.api_key'),
-                    'Content-Type' => 'application/json' // INI SANGAT PENTING
+                    'Content-Type' => 'application/json'
                 ])->post("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id, [
-                    'status' => 'allocated'
+                    'status' => 'confirmed' // <--- UBAH DARI 'allocated' MENJADI 'confirmed'
                 ]);
 
                 $biteshipData = $response->json();
 
-                // CEK KETAT: Jika response dari Biteship GAGAL (HTTP != 20x atau success == false)
+                // Cek jika API gagal ATAU merespons sukses tetapi success = false
                 if (!$response->successful() || (isset($biteshipData['success']) && $biteshipData['success'] === false)) {
                     $errorMsg = $biteshipData['error'] ?? $response->body();
                     \Illuminate\Support\Facades\Log::error('Biteship Allocate Error: ' . $errorMsg);
-                    
-                    // Lempar error ke frontend, JANGAN update DB lokal
+
+                    // Lempar error ke Frontend, JANGAN update DB Lokal
                     return response()->json([
                         'message' => 'Gagal mengalokasikan kurir di Biteship. Detail: ' . $errorMsg
                     ], 400);
                 }
 
-                // JIKA BITESIP SUKSES, baru update DB lokal
-                $transaction->update(['shipping_status' => 'allocated']);
-                return response()->json(['message' => 'Kurir berhasil dialokasikan.']);
+                // Ambil status asli dari respons Biteship (Biasanya akan merespons 'confirmed')
+                $actualBiteshipStatus = strtolower($biteshipData['status'] ?? 'allocated');
 
+                // Update DB Lokal dengan status nyata dari Biteship
+                $transaction->update(['shipping_status' => $actualBiteshipStatus]);
+
+                return response()->json(['message' => 'Kurir berhasil dipanggil.']);
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Biteship Allocate Exception: ' . $e->getMessage());
                 return response()->json(['message' => 'Terjadi kesalahan sistem saat menghubungi logistik.'], 500);
@@ -1004,13 +1043,13 @@ class TransactionController extends Controller
                     $res = \Illuminate\Support\Facades\Http::withHeaders([
                         'Authorization' => config('services.biteship.api_key')
                     ])->get("https://api.biteship.com/v1/orders/" . $transaction->biteship_order_id);
-                    
+
                     if ($res->successful()) {
                         $biteshipStatus = strtolower($res->json()['status'] ?? '');
                         if (in_array($biteshipStatus, ['picked', 'dropping_off', 'delivered', 'return_in_transit', 'returned'])) {
                             return response()->json(['message' => 'Paket sudah diproses kurir, tidak bisa dibatalkan.'], 400);
                         }
-                        
+
                         // Batalkan order di logistik
                         \Illuminate\Support\Facades\Http::withHeaders([
                             'Authorization' => config('services.biteship.api_key')
@@ -1028,7 +1067,7 @@ class TransactionController extends Controller
                     if ($transaction->payment && $transaction->payment->external_id) {
                         $invoiceApi = new InvoiceApi();
                         $invoices = $invoiceApi->getInvoices(null, $transaction->payment->external_id);
-                        
+
                         if (!empty($invoices) && count($invoices) > 0) {
                             $refundApi = new RefundApi();
                             $refundRequest = new CreateRefund([
@@ -1057,10 +1096,10 @@ class TransactionController extends Controller
 
             // Update status transaksi & shipping sekaligus menjadi cancelled
             $transaction->update([
-                'status' => 'cancelled', 
+                'status' => 'cancelled',
                 'shipping_status' => 'cancelled'
             ]);
-            
+
             // Kembalikan stok produk
             foreach ($transaction->details as $detail) {
                 $detail->product->increment('stock', $detail->quantity);
