@@ -14,6 +14,7 @@ use App\Http\Controllers\S3UploadController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CategoryCoaController;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\TransferReceivePaymentController;
 use App\Http\Controllers\AddressController; // Pastikan ini di-import
 
 // Route Public
@@ -130,6 +131,8 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::apiResource('category-coas', CategoryCoaController::class);
     Route::apiResource('coas', CoaController::class);
     Route::post('coas/{id}/post', [CoaController::class, 'postCoa']);
+
+    Route::apiResource('payments', TransferReceivePaymentController::class);
 });
 
 
