@@ -36,7 +36,7 @@ class TransactionController extends Controller
             return response()->json(['message' => 'Cart is empty'], 400);
         }
 
-        return DB::transaction(function () use ($user, $cartItems) {
+        return DB::transaction(function () use ($user, $cartItems, $request) {
             $totalAmount = $cartItems->sum('gross_amount');
             $orderId = 'SOL-' . now()->format('Ymd') . '-' . strtoupper(Str::random(6));
 
@@ -46,8 +46,23 @@ class TransactionController extends Controller
                 $earnedPoints = floor($totalAmount / 100000);
             }
 
+            // $transaction = Transaction::create([
+            //     'user_id' => $user->id,
+            //     'order_id' => $orderId,
+            //     'total_amount' => $totalAmount,
+            //     'status' => 'awaiting_payment',
+            //     'point' => $earnedPoints
+            // ]);
+
+            // [PERBAIKAN 1]: Masukkan address_id dan data shipping agar terekam di database!
             $transaction = Transaction::create([
                 'user_id' => $user->id,
+                'address_id' => $request->address_id, // Pastikan dikirim dari Frontend
+                'shipping_method' => $request->shipping_method ?? 'free',
+                'shipping_cost' => $request->shipping_cost ?? 0,
+                'courier_company' => $request->courier_company,
+                'courier_type' => $request->courier_type,
+                'delivery_type' => $request->delivery_type ?? 'later',
                 'order_id' => $orderId,
                 'total_amount' => $totalAmount,
                 'status' => 'awaiting_payment',
@@ -83,7 +98,7 @@ class TransactionController extends Controller
     public function index(Request $request)
     {
         // Eager load 'payment' untuk mendapatkan checkout_url
-        $transactions = Transaction::with(['details.product', 'payment'])
+        $transactions = Transaction::with(['details.product', 'payment', 'address'])
             ->where('user_id', $request->user()->id)
             ->latest()
             ->get();
@@ -543,24 +558,69 @@ class TransactionController extends Controller
     // Show single transaction
     public function show($id)
     {
-        return response()->json(Transaction::with(['user', 'details.product', 'payment'])->findOrFail($id));
+        return response()->json(Transaction::with(['user', 'details.product', 'payment', 'address'])->findOrFail($id));
     }
 
     public function adminShow($id)
     {
         // Mengambil transaksi dengan relasi user, detail, dan produk di dalam detail
-        $transaction = Transaction::with(['user', 'details.product'])
+        $transaction = Transaction::with(['user', 'details.product', 'address', 'payment'])
             ->findOrFail($id);
 
         return response()->json($transaction);
     }
 
+    // public function salesReport(Request $request)
+    // {
+    //     $month = $request->query('month'); // Format: 1-12
+    //     $year = $request->query('year');   // Format: YYYY
+    //     $search = $request->query('search'); // Pencarian nama produk
+    //     $perPage = $request->query('per_page', 10);
+
+    //     $query = TransactionDetail::query()
+    //         ->select(
+    //             'products.id',
+    //             'products.code',
+    //             'products.name',
+    //             'products.image',
+    //             'categories.name as category_name',
+    //             DB::raw('SUM(transaction_details.quantity) as total_sold'),
+    //             DB::raw('SUM(transaction_details.quantity * transaction_details.price) as total_revenue')
+    //         )
+    //         ->join('transactions', 'transactions.id', '=', 'transaction_details.transaction_id')
+    //         ->join('products', 'products.id', '=', 'transaction_details.product_id')
+    //         ->join('categories', 'categories.id', '=', 'products.category_id')
+    //         ->whereIn('transactions.status', ['completed', 'refund_rejected']);
+
+    //     // Filter Bulan & Tahun
+    //     if ($month && $year) {
+    //         $query->whereMonth('transactions.created_at', $month)
+    //             ->whereYear('transactions.created_at', $year);
+    //     } elseif ($year) {
+    //         $query->whereYear('transactions.created_at', $year);
+    //     }
+
+    //     // Filter Pencarian (Nama Produk atau Kode)
+    //     if ($search) {
+    //         $query->where(function ($q) use ($search) {
+    //             $q->where('products.name', 'like', "%{$search}%")
+    //                 ->orWhere('products.code', 'like', "%{$search}%");
+    //         });
+    //     }
+
+    //     // Grouping & Ordering
+    //     $report = $query->groupBy('products.id', 'products.code', 'products.name', 'products.image', 'categories.name')
+    //         ->orderByDesc('total_revenue') // Urutkan dari omzet tertinggi
+    //         ->paginate($perPage);
+
+    //     return response()->json($report);
+    // }
+
     public function salesReport(Request $request)
     {
-        $month = $request->query('month'); // Format: 1-12
-        $year = $request->query('year');   // Format: YYYY
-        $search = $request->query('search'); // Pencarian nama produk
-        $perPage = $request->query('per_page', 10);
+        $month = $request->query('month');
+        $year = $request->query('year');
+        $search = $request->query('search');
 
         $query = TransactionDetail::query()
             ->select(
@@ -577,7 +637,6 @@ class TransactionController extends Controller
             ->join('categories', 'categories.id', '=', 'products.category_id')
             ->whereIn('transactions.status', ['completed', 'refund_rejected']);
 
-        // Filter Bulan & Tahun
         if ($month && $year) {
             $query->whereMonth('transactions.created_at', $month)
                 ->whereYear('transactions.created_at', $year);
@@ -585,7 +644,6 @@ class TransactionController extends Controller
             $query->whereYear('transactions.created_at', $year);
         }
 
-        // Filter Pencarian (Nama Produk atau Kode)
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('products.name', 'like', "%{$search}%")
@@ -593,12 +651,14 @@ class TransactionController extends Controller
             });
         }
 
-        // Grouping & Ordering
+        // [PERBAIKAN] Gunakan get() alih-alih paginate() untuk memberikan seluruh data ke Vue
         $report = $query->groupBy('products.id', 'products.code', 'products.name', 'products.image', 'categories.name')
-            ->orderByDesc('total_revenue') // Urutkan dari omzet tertinggi
-            ->paginate($perPage);
+            ->orderByDesc('total_revenue')
+            ->get();
 
-        return response()->json($report);
+        return response()->json([
+            'data' => $report // Format ini kita pertahankan agar Frontend tetap konsisten mengambil res.data.data
+        ]);
     }
 
     public function trackOrder($id)
