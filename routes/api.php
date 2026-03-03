@@ -12,6 +12,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\S3UploadController;
+use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CategoryCoaController;
 use App\Http\Controllers\TransactionController;
@@ -31,6 +32,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/users', [AuthController::class, 'getAllUsers']);
     Route::get('/admin/users/{id}', [AuthController::class, 'getUserDetail']);
     Route::post('/user/toggle-membership', [AuthController::class, 'toggleMembership']);
+    Route::get('/wishlists', [WishlistController::class, 'index']);
+    Route::post('/wishlists/toggle', [WishlistController::class, 'toggle']);
 });
 
 // Rute Publik (Bisa diakses tanpa login)
