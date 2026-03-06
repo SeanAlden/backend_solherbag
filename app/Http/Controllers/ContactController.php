@@ -44,38 +44,119 @@
 //     }
 // }
 
+// namespace App\Http\Controllers;
+
+// use App\Services\ContactService;
+// use Illuminate\Http\JsonResponse;
+// use App\Http\Controllers\Controller;
+// use App\Http\Requests\ContactRequest;
+// use App\Http\Resources\ContactResource;
+
+// class ContactController extends Controller
+// {
+//     protected $contactService;
+
+//     public function __construct(ContactService $contactService)
+//     {
+//         $this->contactService = $contactService;
+//     }
+
+//     public function store(ContactRequest $request): JsonResponse
+//     {
+//         $this->contactService->storeInboundMessage($request->validated());
+
+//         return response()->json([
+//             'status' => 'success',
+//             'message' => 'Your inquiry has been received. Our team will contact you shortly.'
+//         ], 201);
+//     }
+
+
+//     public function getInboundMessages()
+//     {
+//         $messages = $this->contactService->getMessagesForAdmin();
+
+//         return ContactResource::collection($messages);
+//     }
+// }
+
 namespace App\Http\Controllers;
 
-use App\Services\ContactService;
+use App\Models\Contact;
+use Illuminate\Http\Request;
+use App\Mail\AdminResponseMail;
 use Illuminate\Http\JsonResponse;
-use App\Http\Controllers\Controller;
-use App\Http\Requests\ContactRequest;
-use App\Http\Resources\ContactResource;
+use Illuminate\Support\Facades\Mail;
 
 class ContactController extends Controller
 {
-    protected $contactService;
-
-    public function __construct(ContactService $contactService)
+    // ... (Fungsi store tetap sama, gunakan yang lama)
+    public function store(Request $request)
     {
-        $this->contactService = $contactService;
+        $data = $request->validate([
+            'name' => 'required',
+            'email' => 'required|email',
+            'phone' => 'nullable',
+            'description' => 'required'
+        ]);
+
+        if ($request->user('sanctum')) {
+            $data['user_id'] = $request->user('sanctum')->id;
+        }
+
+        Contact::create($data);
+
+        return response()->json(['message' => 'Message sent successfully'], 201);
     }
 
-    public function store(ContactRequest $request): JsonResponse
-    {
-        $this->contactService->storeInboundMessage($request->validated());
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Your inquiry has been received. Our team will contact you shortly.'
-        ], 201);
-    }
-
-
+    // Fungsi Admin mengambil semua pesan
     public function getInboundMessages()
     {
-        $messages = $this->contactService->getMessagesForAdmin();
+        // Ubah langsung hit ke model agar data lengkap sesuai DB terbaca di Vue
+        $messages = Contact::with('user')->latest()->get();
+        return response()->json($messages);
+    }
 
-        return ContactResource::collection($messages);
+    // [BARU] Fungsi Admin melihat detail (Sekaligus mark as read)
+    public function showAdminMessage($id)
+    {
+        $contact = Contact::with('user')->findOrFail($id);
+
+        // Jika belum dibaca, ubah jadi sudah dibaca saat dibuka
+        if (!$contact->is_read) {
+            $contact->update(['is_read' => true]);
+        }
+
+        return response()->json($contact);
+    }
+
+    // [BARU] Fungsi Admin membalas pesan
+    public function respondMessage(Request $request, $id)
+    {
+        $request->validate(['response' => 'required|string']);
+
+        $contact = Contact::findOrFail($id);
+
+        $contact->update([
+            'response' => $request->response,
+            'is_read' => true // Pastikan juga ter-read
+        ]);
+
+        // Kirim Email
+        try {
+            Mail::to($contact->email)->send(new AdminResponseMail($contact));
+        } catch (\Exception $e) {
+            // Lanjutkan saja meskipun email gagal, data tetap tersimpan di web
+            \Log::error('Gagal kirim email kontak: ' . $e->getMessage());
+        }
+
+        return response()->json(['message' => 'Response sent successfully']);
+    }
+
+    // [BARU] Fungsi User melihat riwayat pesan mereka sendiri
+    public function userHistory(Request $request)
+    {
+        $messages = Contact::where('user_id', $request->user()->id)->latest()->get();
+        return response()->json($messages);
     }
 }

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Contact extends Model
 {
-    protected $fillable = ['user_id', 'name', 'email', 'phone', 'description'];
+    protected $fillable = ['user_id', 'name', 'email', 'phone', 'description', 'is_read', 'response'];
 
     public function user(): BelongsTo
     {

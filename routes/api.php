@@ -42,6 +42,17 @@ Route::get('/products/inactive', [ProductController::class, 'inactiveProducts'])
 Route::get('/products/{id}', [ProductController::class, 'show']);
 
 Route::post('/contact', [ContactController::class, 'store']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    // User cek riwayat pesan
+    Route::get('/user/contact-history', [ContactController::class, 'userHistory']);
+
+    // Admin Routes
+    Route::get('/admin/messages', [ContactController::class, 'getInboundMessages']);
+    Route::get('/admin/messages/{id}', [ContactController::class, 'showAdminMessage']);
+    Route::post('/admin/messages/{id}/respond', [ContactController::class, 'respondMessage']);
+});
+
 Route::get('/admin/messages', [ContactController::class, 'getInboundMessages']);
 
 Route::get('/guest/categories', [CategoryController::class, 'index']);
@@ -148,7 +159,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
     Route::get('invoices', [InvoiceController::class, 'indexInvoice']);
     Route::post('invoices', [InvoiceController::class, 'storeInvoice']);
-    Route::put('invoices/{id}', [InvoiceController::class, 'updateInvoice']); 
+    Route::put('invoices/{id}', [InvoiceController::class, 'updateInvoice']);
     Route::post('invoices/{id}/pay', [InvoiceController::class, 'processPayment']);
     Route::delete('invoices/{id}', [InvoiceController::class, 'deleteInvoice']);
 });
