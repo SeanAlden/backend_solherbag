@@ -158,7 +158,7 @@ class DashboardController extends Controller
     //     // Ambil 4 teratas
     //     return response()->json(array_slice($results, 0, 4));
     // }
-    
+
     public function getPredictedBestsellers(C45Service $c45Service)
     {
         // 1. AMBIL SEMUA PRODUK UNTUK DATA TRAINING & PREDIKSI (CARA YANG LEBIH AMAN)
@@ -251,7 +251,7 @@ class DashboardController extends Controller
             return $this->getPopularProducts();
         }
 
-        // Ambil 4 teratas
-        return response()->json(array_slice($results, 0, 4));
+        // Ambil 100 teratas
+        return response()->json(array_slice($results, 0, 100));
     }
 }
