@@ -102,6 +102,8 @@ class TransactionController extends Controller
             'address_id' => 'required',
             'shipping_method' => 'required|in:free,biteship',
             'use_points' => 'nullable|integer|min:0',
+            'cart_ids' => 'required|array',          // <-- PASTIKAN DIKIRIM DARI FRONTEND
+            'cart_ids.*' => 'exists:carts,id',        // <-- PASTIKAN SEMUA ID VALID
             // ... validasi shipping_cost dll bisa ditaruh di sini
             'shipping_cost',
             'courier_company',
@@ -114,10 +116,18 @@ class TransactionController extends Controller
         ]);
 
         $user = $request->user();
-        $cartItems = Cart::with('product')->where('user_id', $user->id)->get();
+        // $cartItems = Cart::with('product')->where('user_id', $user->id)->get();
+        $cartItems = Cart::with('product')
+            ->where('user_id', $user->id)
+            ->whereIn('id', $request->cart_ids) // <-- KUNCI PENYELESAIAN
+            ->get();
+
+        // if ($cartItems->isEmpty()) {
+        //     return response()->json(['message' => 'Cart is empty'], 400);
+        // }
 
         if ($cartItems->isEmpty()) {
-            return response()->json(['message' => 'Cart is empty'], 400);
+            return response()->json(['message' => 'No items selected for checkout'], 400);
         }
 
         return DB::transaction(function () use ($user, $cartItems, $request) {
@@ -189,7 +199,8 @@ class TransactionController extends Controller
             }
 
             // 5. HAPUS KERANJANG (HANYA KETIKA CHECKOUT BERHASIL)
-            Cart::where('user_id', $user->id)->delete();
+            // Cart::where('user_id', $user->id)->delete();
+            Cart::where('user_id', $user->id)->whereIn('id', $request->cart_ids)->delete();
 
             // 6. GENERATE XENDIT INVOICE DI SINI!
             $externalId = 'PAY-' . $orderId;
