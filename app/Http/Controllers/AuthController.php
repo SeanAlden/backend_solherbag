@@ -12,6 +12,32 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
+    // public function register(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'first_name' => 'required|string|max:255',
+    //         'last_name'  => 'required|string|max:255',
+    //         'email'      => 'required|string|email|max:255|unique:users',
+    //         'password'   => 'required|string|min:8',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json($validator->errors(), 422);
+    //     }
+
+    //     $user = User::create([
+    //         'first_name' => $request->first_name,
+    //         'last_name'  => $request->last_name,
+    //         'email'      => $request->email,
+    //         'password'   => Hash::make($request->password),
+    //     ]);
+
+    //     return response()->json([
+    //         'message' => 'User berhasil didaftarkan',
+    //         'user'    => $user
+    //     ], 201);
+    // }
+
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -25,12 +51,27 @@ class AuthController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
+        // ========================================================================
+        // [BARU] 1. Cek apakah email ini sudah pernah subscribe saat menjadi Guest
+        // ========================================================================
+        $subscriber = \App\Models\Subscriber::where('email', $request->email)->first();
+        $isSubscribed = $subscriber ? true : false;
+
+        // 2. Buat User baru
         $user = User::create([
-            'first_name' => $request->first_name,
-            'last_name'  => $request->last_name,
-            'email'      => $request->email,
-            'password'   => Hash::make($request->password),
+            'first_name'    => $request->first_name,
+            'last_name'     => $request->last_name,
+            'email'         => $request->email,
+            'password'      => Hash::make($request->password),
+            'is_subscribed' => $isSubscribed, // <--- Set status otomatis berdasarkan pengecekan di atas
         ]);
+
+        // ========================================================================
+        // [BARU] 3. Jika dia ada di tabel subscribers, tandai bahwa dia kini Registered
+        // ========================================================================
+        if ($subscriber) {
+            $subscriber->update(['is_registered' => true]);
+        }
 
         return response()->json([
             'message' => 'User berhasil didaftarkan',

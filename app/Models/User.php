@@ -28,7 +28,8 @@ class User extends Authenticatable
         'password',
         'usertype',
         'is_membership', 
-        'point'
+        'point',
+        'is_subscribed' 
     ];
 
     /**

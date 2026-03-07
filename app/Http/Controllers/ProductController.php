@@ -96,16 +96,37 @@ class ProductController extends Controller
     //     return response()->json($product, 201);
     // }
 
+    // public function store(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'code' => 'required|unique:products',
+    //         'name' => 'required',
+    //         'category_id' => 'required|exists:categories,id',
+    //         'price' => 'required|numeric',
+    //         'stock' => 'required|integer',
+
+    //         // sekarang URL
+    //         'image' => 'required|string',
+    //         'variant_images' => 'nullable|array',
+    //         'variant_video' => 'nullable|string',
+    //     ]);
+
+    //     if ($validator->fails())
+    //         return response()->json($validator->errors(), 422);
+
+    //     $product = Product::create($request->all());
+
+    //     return response()->json($product, 201);
+    // }
+
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'code' => 'required|unique:products',
             'name' => 'required',
             'category_id' => 'required|exists:categories,id',
             'price' => 'required|numeric',
             'stock' => 'required|integer',
-
-            // sekarang URL
             'image' => 'required|string',
             'variant_images' => 'nullable|array',
             'variant_video' => 'nullable|string',
@@ -115,6 +136,20 @@ class ProductController extends Controller
             return response()->json($validator->errors(), 422);
 
         $product = Product::create($request->all());
+
+        // [BARU] BROADCAST KE SEMUA SUBSCRIBER AKTIF
+        // Catatan: Di production skala besar, gunakan Mail::to()->queue() agar web admin tidak loading lama.
+        $subscribers = \App\Models\Subscriber::where('is_active', true)->pluck('email');
+
+        foreach ($subscribers as $email) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\NewProductAlertMail($product));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Gagal broadcast produk ke $email: " . $e->getMessage());
+                // Lanjut ke email berikutnya jika 1 gagal
+                continue;
+            }
+        }
 
         return response()->json($product, 201);
     }

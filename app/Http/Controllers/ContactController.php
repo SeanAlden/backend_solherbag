@@ -160,9 +160,32 @@ class ContactController extends Controller
         return response()->json($messages);
     }
 
-    public function subscribe(Request $request)
+    // public function subscribe(Request $request)
+    // {
+    //     // Validasi 'email:rfc,dns' akan mengecek apakah domain email tersebut benar-benar aktif/punya mail server
+    //     $request->validate([
+    //         'email' => 'required|email:rfc,dns'
+    //     ], [
+    //         'email.dns' => 'The email domain does not seem to be valid or active.'
+    //     ]);
+
+    //     $email = $request->email;
+
+    //     // Kirim email Welcome
+    //     try {
+    //         \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\WelcomeSubscriberMail($email));
+    //     } catch (\Exception $e) {
+    //         \Illuminate\Support\Facades\Log::error('Gagal kirim email subscribe: ' . $e->getMessage());
+    //         return response()->json(['message' => 'Failed to send confirmation email. Is your email correct?'], 500);
+    //     }
+
+    //     return response()->json([
+    //         'message' => 'Subscription successful! We have sent a welcome email to your inbox.'
+    //     ], 200);
+    // }
+
+    public function subscribe(\Illuminate\Http\Request $request)
     {
-        // Validasi 'email:rfc,dns' akan mengecek apakah domain email tersebut benar-benar aktif/punya mail server
         $request->validate([
             'email' => 'required|email:rfc,dns'
         ], [
@@ -171,16 +194,38 @@ class ContactController extends Controller
 
         $email = $request->email;
 
-        // Kirim email Welcome
+        // Cek apakah ini email dari user yang sudah terdaftar di web kita
+        $user = \App\Models\User::where('email', $email)->first();
+        $isRegistered = $user ? true : false;
+
+        $subscriber = \App\Models\Subscriber::where('email', $email)->first();
+
+        if ($subscriber) {
+            if (!$subscriber->is_active) {
+                $subscriber->update(['is_active' => true, 'is_registered' => $isRegistered]);
+            } else {
+                return response()->json(['message' => 'You are already subscribed!'], 400);
+            }
+        } else {
+            \App\Models\Subscriber::create([
+                'email' => $email,
+                'is_registered' => $isRegistered,
+                'is_active' => true
+            ]);
+        }
+
+        // Jika dia user terdaftar, update status di tabel users juga
+        if ($user) {
+            $user->update(['is_subscribed' => true]);
+        }
+
+        // Kirim Email Welcome (Sama seperti sebelumnya)
         try {
             \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\WelcomeSubscriberMail($email));
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Gagal kirim email subscribe: ' . $e->getMessage());
-            return response()->json(['message' => 'Failed to send confirmation email. Is your email correct?'], 500);
+            \Illuminate\Support\Facades\Log::error('Subscribe Mail Error: ' . $e->getMessage());
         }
 
-        return response()->json([
-            'message' => 'Subscription successful! We have sent a welcome email to your inbox.'
-        ], 200);
+        return response()->json(['message' => 'Subscription successful! Welcome to our newsletter.']);
     }
 }

@@ -163,6 +163,12 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::put('invoices/{id}', [InvoiceController::class, 'updateInvoice']);
     Route::post('invoices/{id}/pay', [InvoiceController::class, 'processPayment']);
     Route::delete('invoices/{id}', [InvoiceController::class, 'deleteInvoice']);
+
+    Route::get('subscribers', function () {
+        $subs = \App\Models\Subscriber::latest()->get();
+        return response()->json($subs);
+    });
 });
+
 
 
