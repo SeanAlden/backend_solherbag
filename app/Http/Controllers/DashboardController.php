@@ -241,7 +241,7 @@ class DashboardController extends Controller
                     'reasons' => "Rule Path: " . implode(" ➔ ", $rulePath),
                     'label' => 'High Potential (C4.5)',
                     'color' => 'text-green-600',
-                    'score' => random_int(85, 98)
+                    'score' => random_int(75, 98)
                 ];
             }
         }
