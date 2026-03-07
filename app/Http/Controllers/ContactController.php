@@ -159,4 +159,28 @@ class ContactController extends Controller
         $messages = Contact::where('user_id', $request->user()->id)->latest()->get();
         return response()->json($messages);
     }
+
+    public function subscribe(Request $request)
+    {
+        // Validasi 'email:rfc,dns' akan mengecek apakah domain email tersebut benar-benar aktif/punya mail server
+        $request->validate([
+            'email' => 'required|email:rfc,dns'
+        ], [
+            'email.dns' => 'The email domain does not seem to be valid or active.'
+        ]);
+
+        $email = $request->email;
+
+        // Kirim email Welcome
+        try {
+            \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\WelcomeSubscriberMail($email));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Gagal kirim email subscribe: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to send confirmation email. Is your email correct?'], 500);
+        }
+
+        return response()->json([
+            'message' => 'Subscription successful! We have sent a welcome email to your inbox.'
+        ], 200);
+    }
 }

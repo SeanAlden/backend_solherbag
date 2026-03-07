@@ -53,7 +53,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/messages/{id}/respond', [ContactController::class, 'respondMessage']);
 });
 
-Route::get('/admin/messages', [ContactController::class, 'getInboundMessages']);
+// Route::get('/admin/messages', [ContactController::class, 'getInboundMessages']);
+Route::post('/subscribe', [ContactController::class, 'subscribe']);
 
 Route::get('/guest/categories', [CategoryController::class, 'index']);
 
