@@ -327,4 +327,52 @@ class DashboardController extends Controller
 
         return response()->json($recentTransactions);
     }
+
+    // =========================================================================
+    // [BARU] FUNGSI UNTUK GRAFIK RATA-RATA PENDAPATAN HARIAN (SENIN - MINGGU)
+    // =========================================================================
+    public function getAverageDailyRevenue()
+    {
+        // Query menggunakan MySQL DAYOFWEEK()
+        // DAYOFWEEK() mengembalikan: 1 = Minggu, 2 = Senin, 3 = Selasa, ... 7 = Sabtu
+        // Kita menggunakan AVG() untuk mendapatkan rata-rata, bukan total, agar datanya tidak bias jika bulan tertentu punya lebih banyak hari Senin.
+
+        $dailyAverages = Transaction::where('status', 'completed')
+            ->select(
+                DB::raw('AVG(total_amount) as average_revenue'),
+                DB::raw('DAYOFWEEK(created_at) as day_of_week')
+            )
+            ->groupBy('day_of_week')
+            ->get();
+
+        // Siapkan struktur data default (Senin - Minggu dengan nilai 0)
+        // Kita ubah index agar sesuai dengan hari kalender internasional (Senin = 1, Minggu = 7)
+        $chartData = [
+            1 => ['day' => 'Mon', 'average' => 0],
+            2 => ['day' => 'Tue', 'average' => 0],
+            3 => ['day' => 'Wed', 'average' => 0],
+            4 => ['day' => 'Thu', 'average' => 0],
+            5 => ['day' => 'Fri', 'average' => 0],
+            6 => ['day' => 'Sat', 'average' => 0],
+            7 => ['day' => 'Sun', 'average' => 0],
+        ];
+
+        // Mapping hasil query database ke struktur chartData
+        foreach ($dailyAverages as $data) {
+            // Konversi dari DAYOFWEEK MySQL (1=Sun, 2=Mon... 7=Sat)
+            // ke Array kita (1=Mon, 2=Tue... 7=Sun)
+            $dbDay = $data->day_of_week;
+
+            if ($dbDay == 1) {
+                $mappedDay = 7; // Minggu
+            } else {
+                $mappedDay = $dbDay - 1; // Senin - Sabtu (2-1=1, 7-1=6)
+            }
+
+            $chartData[$mappedDay]['average'] = (float) $data->average_revenue;
+        }
+
+        // Kembalikan array value-nya saja (tanpa key 1-7) agar mudah dibaca oleh Frontend
+        return response()->json(array_values($chartData));
+    }
 }

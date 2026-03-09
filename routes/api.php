@@ -128,6 +128,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin/dashboard')->group(f
     Route::get('/predicted-bestsellers', [DashboardController::class,
     'getPredictedBestsellers']);
     Route::get('/recent-activities', [DashboardController::class, 'getRecentActivities']);
+    Route::get('/daily-average', [DashboardController::class, 'getAverageDailyRevenue']);
 });
 
 // Create Xendit Invoice (harus login)
