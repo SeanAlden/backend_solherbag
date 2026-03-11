@@ -146,6 +146,8 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
         return $request->user();
     });
 
+    Route::get('/dashboard/master-data', [DashboardController::class, 'getDashboardMasterData']);
+
     Route::post('/update-info', [AuthController::class, 'updateAdminProfileInfo']);
     Route::post('/update-image', [AuthController::class, 'updateAdminImage']);
     Route::post('/update-password', [AuthController::class, 'updateAdminPassword']);
