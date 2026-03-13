@@ -1,5 +1,211 @@
 <?php
 
+// use Illuminate\Http\Request;
+// use Illuminate\Support\Facades\Route;
+// use App\Http\Controllers\CoaController;
+// use App\Http\Controllers\AuthController;
+// use App\Http\Controllers\CartController;
+// use App\Http\Controllers\HomeController;
+// use App\Http\Controllers\ProductController;
+// use App\Http\Controllers\ContactController;
+// use App\Http\Controllers\PaymentController;
+// use App\Http\Controllers\InvoiceController;
+// use App\Http\Controllers\CategoryController;
+// use App\Http\Controllers\S3UploadController;
+// use App\Http\Controllers\WishlistController;
+// use App\Http\Controllers\DashboardController;
+// use App\Http\Controllers\CategoryCoaController;
+// use App\Http\Controllers\TransactionController;
+// use App\Http\Controllers\TransferReceivePaymentController;
+// use App\Http\Controllers\AddressController; // Pastikan ini di-import
+
+// // Route khusus untuk Vercel Cron Job
+// Route::get('/trigger-queue', function (\Illuminate\Http\Request $request) {
+//     // 1. Keamanan: Pastikan hanya Vercel/Anda yang bisa memanggil URL ini
+//     if ($request->query('token') !== config('app.queue_token', 'rahasia123')) {
+//         return response()->json(['message' => 'Unauthorized'], 403);
+//     }
+
+//     // 2. Jalankan worker, tapi paksa berhenti jika antrean kosong atau sudah berjalan 10 detik (batas aman Vercel)
+//     try {
+//         \Illuminate\Support\Facades\Artisan::call('queue:work', [
+//             '--stop-when-empty' => true,
+//             '--max-time' => 10, // Berhenti setelah 10 detik agar tidak Vercel Timeout 504
+//         ]);
+
+//         return response()->json(['message' => 'Queue processed successfully.']);
+//     } catch (\Exception $e) {
+//         return response()->json(['message' => 'Queue failed: ' . $e->getMessage()], 500);
+//     }
+// });
+
+// // Route Public
+// Route::get('/home/find-product', [HomeController::class, 'getProductBySearch']);
+// Route::get('/home/category/{code}', [HomeController::class, 'getProductsByCategory']);
+// Route::post('/register', [AuthController::class, 'register']);
+// Route::post('/login', [AuthController::class, 'login']);
+// Route::post('/admin/login', [AuthController::class, 'adminLogin']);
+// Route::post('/forgot-password/send-code', [AuthController::class, 'sendResetCode']);
+// Route::post('/forgot-password/verify-code', [AuthController::class, 'verifyResetCode']);
+// Route::post('/forgot-password/reset', [AuthController::class, 'resetPassword']);
+// // Rute Lupa Password khusus ADMIN
+// Route::post('/admin/forgot-password/send-code', [AuthController::class, 'adminSendResetCode']);
+// Route::post('/admin/forgot-password/verify-code', [AuthController::class, 'adminVerifyResetCode']);
+// Route::post('/admin/forgot-password/reset', [AuthController::class, 'adminResetPassword']);
+// Route::middleware('auth:sanctum')->group(function () {
+//     Route::post('/user/update-info', [AuthController::class, 'updateProfileInfo']);
+//     Route::post('/user/update-image', [AuthController::class, 'updateImage']);
+//     Route::post('/user/update-password', action: [AuthController::class, 'updatePassword']);
+//     Route::get('/admin/users', [AuthController::class, 'getAllUsers']);
+//     Route::get('/admin/users/{id}', [AuthController::class, 'getUserDetail']);
+//     Route::post('/user/toggle-membership', [AuthController::class, 'toggleMembership']);
+//     Route::get('/wishlists', [WishlistController::class, 'index']);
+//     Route::post('/wishlists/toggle', [WishlistController::class, 'toggle']);
+// });
+
+// // Rute Publik (Bisa diakses tanpa login)
+// Route::get('/products', [ProductController::class, 'index']);
+// Route::get('/products/inactive', [ProductController::class, 'inactiveProducts']);
+// Route::get('/products/{id}', [ProductController::class, 'show']);
+
+// Route::post('/contact', [ContactController::class, 'store']);
+
+// Route::middleware('auth:sanctum')->group(function () {
+//     // User cek riwayat pesan
+//     Route::get('/user/contact-history', [ContactController::class, 'userHistory']);
+
+//     // Admin Routes
+//     Route::get('/admin/messages', [ContactController::class, 'getInboundMessages']);
+//     Route::get('/admin/messages/{id}', [ContactController::class, 'showAdminMessage']);
+//     Route::post('/admin/messages/{id}/respond', [ContactController::class, 'respondMessage']);
+// });
+
+// // Route::get('/admin/messages', [ContactController::class, 'getInboundMessages']);
+// Route::post('/subscribe', [ContactController::class, 'subscribe']);
+
+// Route::get('/guest/categories', [CategoryController::class, 'index']);
+
+// // Route Protected (Membutuhkan Login)
+// Route::middleware('auth:sanctum')->group(function () {
+//     // Info User
+//     Route::get('/user', function (Request $request) {
+//         return $request->user();
+//     });
+
+//     // Manajemen Alamat (Address)
+//     Route::get('/addresses', [AddressController::class, 'index']);
+//     Route::post('/addresses', [AddressController::class, 'store']);
+//     Route::put('/addresses/{id}', [AddressController::class, 'update']);
+//     Route::delete('/addresses/{id}', [AddressController::class, 'destroy']);
+
+//     Route::get('/categories', [CategoryController::class, 'index']);
+//     Route::post('/categories', [CategoryController::class, 'store']);
+//     Route::put('/categories/{id}', [CategoryController::class, 'update']);
+//     Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
+//     Route::get('/categories/{id}', [CategoryController::class, 'show']);
+
+//     // Hanya simpan rute manajemen admin di sini
+//     Route::post('/products', [ProductController::class, 'store']);
+//     Route::put('/products/{id}', [ProductController::class, 'update']);
+//     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+//     Route::put('/products/{id}/restore', [ProductController::class, 'restore']);
+//     Route::delete('/products/{id}/force', [ProductController::class, 'forceDelete']);
+
+//     Route::get('/admin/product-stocks', [\App\Http\Controllers\ProductStockController::class, 'index']);
+//     Route::post('/admin/product-stocks/{productId}', [\App\Http\Controllers\ProductStockController::class, 'store']);
+
+//     Route::get('/carts', [CartController::class, 'index']);
+//     Route::post('/carts', [CartController::class, 'store']);
+//     Route::put('/carts/{id}', [CartController::class, 'update']);
+//     Route::delete('/carts/{id}', [CartController::class, 'destroy']);
+
+//     // Checkout (buat transaksi dari cart)
+//     Route::post('/checkout', [TransactionController::class, 'checkout']);
+
+//     Route::get('/transactions', [TransactionController::class, 'index']);
+//     Route::get('/admin/transactions', [TransactionController::class, 'allTransactions']);
+
+//     // User Actions
+//     Route::post('/transactions/{id}/cancel', [TransactionController::class, 'cancelOrder']);
+//     Route::post('/transactions/{id}/confirm', [TransactionController::class, 'confirmComplete']);
+//     Route::post('/transactions/{id}/refund-request', [TransactionController::class, 'requestRefund']);
+//     Route::post('/transactions/{id}/refund-process', [TransactionController::class, 'processRefundUser']);
+//     Route::post('/admin/transactions/{id}/refund-approve', [TransactionController::class, 'approveRefund']);
+//     Route::post('/admin/transactions/{id}/refund-reject', [TransactionController::class, 'rejectRefund']);
+
+//     // List transaksi user login
+//     // Route::put('/admin/transactions/{id}/status', [TransactionController::class, 'updateStatus']);
+//     Route::get('/transactions/{id}', [TransactionController::class, 'show']);
+//     Route::get('/admin/transactions/{id}', [TransactionController::class, 'adminShow']);
+//     Route::get('/admin/sales-report', [TransactionController::class, 'salesReport']);
+//     Route::get('/transactions/{id}/tracking', action: [TransactionController::class, 'trackOrder']);
+//     Route::post('/transactions/tracking/bulk', [TransactionController::class, 'bulkTrackOrders']);
+// });
+
+// Route::post('/biteship/callback', [TransactionController::class, 'biteshipCallback']);
+
+// Route::middleware(['auth:sanctum', 'admin'])->prefix('admin/dashboard')->group(function () {
+//     Route::get('/stats', [DashboardController::class, 'getStats']);
+//     Route::get('/revenue-chart', [DashboardController::class, 'getRevenueChart']);
+//     Route::get('/popular-products', [DashboardController::class, 'getPopularProducts']);
+//     Route::get('/predicted-bestsellers', [DashboardController::class,
+//     'getPredictedBestsellers']);
+//     Route::get('/recent-activities', [DashboardController::class, 'getRecentActivities']);
+//     Route::get('/daily-average', [DashboardController::class, 'getAverageDailyRevenue']);
+// });
+
+// // Create Xendit Invoice (harus login)
+// Route::middleware('auth:sanctum')->group(function () {
+//     Route::post('/payments/invoice', [PaymentController::class, 'createInvoice']);
+// });
+
+// // Xendit callback / webhook (tanpa auth)
+// Route::post('/payments/callback', [PaymentController::class, 'callback']);
+// Route::post('/shipping/rates', [PaymentController::class, 'getShippingRates']);
+
+// Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+
+//     Route::get('/', function (Request $request) {
+//         return $request->user();
+//     });
+
+//     Route::get('/dashboard/master-data', [DashboardController::class, 'getDashboardMasterData']);
+
+//     Route::post('/update-info', [AuthController::class, 'updateAdminProfileInfo']);
+//     Route::post('/update-image', [AuthController::class, 'updateAdminImage']);
+//     Route::post('/update-password', [AuthController::class, 'updateAdminPassword']);
+//     Route::post('/transactions/tracking/bulk', [TransactionController::class, 'adminBulkTrackOrders']);
+//     Route::get('/transactions/{id}/tracking', [TransactionController::class, 'adminTrackOrder']);
+//     Route::get('/transactions/{id}/print-label', [TransactionController::class, 'printLabel']);
+//     Route::post('/s3/presign', [S3UploadController::class, 'presign']);
+
+//     // Accounting Routes
+//     Route::apiResource('category-coas', CategoryCoaController::class);
+//     Route::apiResource('coas', CoaController::class);
+//     Route::post('coas/{id}/post', [CoaController::class, 'postCoa']);
+
+//     Route::apiResource('payments', TransferReceivePaymentController::class);
+
+//     // Modul Accounting: Invoices & Suppliers
+//     Route::apiResource('suppliers', InvoiceController::class)->except(['create', 'edit', 'show']);
+//     // Untuk routing kustom supplier
+//     Route::get('suppliers', [InvoiceController::class, 'indexSupplier']);
+//     Route::post('suppliers', [InvoiceController::class, 'storeSupplier']);
+//     Route::put('suppliers/{id}', [InvoiceController::class, 'updateSupplier']);
+//     Route::delete('suppliers/{id}', [InvoiceController::class, 'deleteSupplier']);
+
+//     Route::get('invoices', [InvoiceController::class, 'indexInvoice']);
+//     Route::post('invoices', [InvoiceController::class, 'storeInvoice']);
+//     Route::put('invoices/{id}', [InvoiceController::class, 'updateInvoice']);
+//     Route::post('invoices/{id}/pay', [InvoiceController::class, 'processPayment']);
+//     Route::delete('invoices/{id}', [InvoiceController::class, 'deleteInvoice']);
+
+//     Route::get('subscribers', function () {
+//         $subs = \App\Models\Subscriber::latest()->get();
+//         return response()->json($subs);
+//     });
+// });
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CoaController;
@@ -10,200 +216,183 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\AddressController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\S3UploadController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CategoryCoaController;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\ProductStockController;
 use App\Http\Controllers\TransferReceivePaymentController;
-use App\Http\Controllers\AddressController; // Pastikan ini di-import
 
-// Route khusus untuk Vercel Cron Job
-Route::get('/trigger-queue', function (\Illuminate\Http\Request $request) {
-    // 1. Keamanan: Pastikan hanya Vercel/Anda yang bisa memanggil URL ini
-    if ($request->query('token') !== config('app.queue_token', 'rahasia123')) {
-        return response()->json(['message' => 'Unauthorized'], 403);
-    }
-
-    // 2. Jalankan worker, tapi paksa berhenti jika antrean kosong atau sudah berjalan 10 detik (batas aman Vercel)
-    try {
-        \Illuminate\Support\Facades\Artisan::call('queue:work', [
-            '--stop-when-empty' => true,
-            '--max-time' => 10, // Berhenti setelah 10 detik agar tidak Vercel Timeout 504
-        ]);
-
-        return response()->json(['message' => 'Queue processed successfully.']);
-    } catch (\Exception $e) {
-        return response()->json(['message' => 'Queue failed: ' . $e->getMessage()], 500);
-    }
-});
-
-// Route Public
+// =========================================================================
+// PUBLIC ROUTES
+// =========================================================================
 Route::get('/home/find-product', [HomeController::class, 'getProductBySearch']);
 Route::get('/home/category/{code}', [HomeController::class, 'getProductsByCategory']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
+
+// Lupa Password (User)
 Route::post('/forgot-password/send-code', [AuthController::class, 'sendResetCode']);
 Route::post('/forgot-password/verify-code', [AuthController::class, 'verifyResetCode']);
 Route::post('/forgot-password/reset', [AuthController::class, 'resetPassword']);
-// Rute Lupa Password khusus ADMIN
+
+// Lupa Password (Admin/Staf)
 Route::post('/admin/forgot-password/send-code', [AuthController::class, 'adminSendResetCode']);
 Route::post('/admin/forgot-password/verify-code', [AuthController::class, 'adminVerifyResetCode']);
 Route::post('/admin/forgot-password/reset', [AuthController::class, 'adminResetPassword']);
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/user/update-info', [AuthController::class, 'updateProfileInfo']);
-    Route::post('/user/update-image', [AuthController::class, 'updateImage']);
-    Route::post('/user/update-password', action: [AuthController::class, 'updatePassword']);
-    Route::get('/admin/users', [AuthController::class, 'getAllUsers']);
-    Route::get('/admin/users/{id}', [AuthController::class, 'getUserDetail']);
-    Route::post('/user/toggle-membership', [AuthController::class, 'toggleMembership']);
-    Route::get('/wishlists', [WishlistController::class, 'index']);
-    Route::post('/wishlists/toggle', [WishlistController::class, 'toggle']);
-});
 
-// Rute Publik (Bisa diakses tanpa login)
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/inactive', [ProductController::class, 'inactiveProducts']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
-
 Route::post('/contact', [ContactController::class, 'store']);
-
-Route::middleware('auth:sanctum')->group(function () {
-    // User cek riwayat pesan
-    Route::get('/user/contact-history', [ContactController::class, 'userHistory']);
-
-    // Admin Routes
-    Route::get('/admin/messages', [ContactController::class, 'getInboundMessages']);
-    Route::get('/admin/messages/{id}', [ContactController::class, 'showAdminMessage']);
-    Route::post('/admin/messages/{id}/respond', [ContactController::class, 'respondMessage']);
-});
-
-// Route::get('/admin/messages', [ContactController::class, 'getInboundMessages']);
 Route::post('/subscribe', [ContactController::class, 'subscribe']);
-
 Route::get('/guest/categories', [CategoryController::class, 'index']);
+Route::post('/biteship/callback', [TransactionController::class, 'biteshipCallback']);
+Route::post('/payments/callback', [PaymentController::class, 'callback']);
+Route::post('/shipping/rates', [PaymentController::class, 'getShippingRates']);
 
-// Route Protected (Membutuhkan Login)
+
+// =========================================================================
+// PROTECTED ROUTES: GLOBAL LOGGED IN USERS (Semua User)
+// =========================================================================
 Route::middleware('auth:sanctum')->group(function () {
-    // Info User
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+    Route::post('/user/update-info', [AuthController::class, 'updateProfileInfo']);
+    Route::post('/user/update-image', [AuthController::class, 'updateImage']);
+    Route::post('/user/update-password', [AuthController::class, 'updatePassword']);
+    Route::post('/user/toggle-membership', [AuthController::class, 'toggleMembership']);
 
-    // Manajemen Alamat (Address)
+    Route::get('/wishlists', [WishlistController::class, 'index']);
+    Route::post('/wishlists/toggle', [WishlistController::class, 'toggle']);
+
+    Route::get('/user/contact-history', [ContactController::class, 'userHistory']);
+
     Route::get('/addresses', [AddressController::class, 'index']);
     Route::post('/addresses', [AddressController::class, 'store']);
     Route::put('/addresses/{id}', [AddressController::class, 'update']);
     Route::delete('/addresses/{id}', [AddressController::class, 'destroy']);
-
-    Route::get('/categories', [CategoryController::class, 'index']);
-    Route::post('/categories', [CategoryController::class, 'store']);
-    Route::put('/categories/{id}', [CategoryController::class, 'update']);
-    Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
-    Route::get('/categories/{id}', [CategoryController::class, 'show']);
-
-    // Hanya simpan rute manajemen admin di sini
-    Route::post('/products', [ProductController::class, 'store']);
-    Route::put('/products/{id}', [ProductController::class, 'update']);
-    Route::delete('/products/{id}', [ProductController::class, 'destroy']);
-    Route::put('/products/{id}/restore', [ProductController::class, 'restore']);
-    Route::delete('/products/{id}/force', [ProductController::class, 'forceDelete']);
-
-    Route::get('/admin/product-stocks', [\App\Http\Controllers\ProductStockController::class, 'index']);
-    Route::post('/admin/product-stocks/{productId}', [\App\Http\Controllers\ProductStockController::class, 'store']);
 
     Route::get('/carts', [CartController::class, 'index']);
     Route::post('/carts', [CartController::class, 'store']);
     Route::put('/carts/{id}', [CartController::class, 'update']);
     Route::delete('/carts/{id}', [CartController::class, 'destroy']);
 
-    // Checkout (buat transaksi dari cart)
     Route::post('/checkout', [TransactionController::class, 'checkout']);
-
     Route::get('/transactions', [TransactionController::class, 'index']);
-    Route::get('/admin/transactions', [TransactionController::class, 'allTransactions']);
-
-    // User Actions
+    Route::get('/transactions/{id}', [TransactionController::class, 'show']);
     Route::post('/transactions/{id}/cancel', [TransactionController::class, 'cancelOrder']);
     Route::post('/transactions/{id}/confirm', [TransactionController::class, 'confirmComplete']);
     Route::post('/transactions/{id}/refund-request', [TransactionController::class, 'requestRefund']);
     Route::post('/transactions/{id}/refund-process', [TransactionController::class, 'processRefundUser']);
-    Route::post('/admin/transactions/{id}/refund-approve', [TransactionController::class, 'approveRefund']);
-    Route::post('/admin/transactions/{id}/refund-reject', [TransactionController::class, 'rejectRefund']);
-
-    // List transaksi user login
-    // Route::put('/admin/transactions/{id}/status', [TransactionController::class, 'updateStatus']);
-    Route::get('/transactions/{id}', [TransactionController::class, 'show']);
-    Route::get('/admin/transactions/{id}', [TransactionController::class, 'adminShow']);
-    Route::get('/admin/sales-report', [TransactionController::class, 'salesReport']);
-    Route::get('/transactions/{id}/tracking', action: [TransactionController::class, 'trackOrder']);
+    Route::get('/transactions/{id}/tracking', [TransactionController::class, 'trackOrder']);
     Route::post('/transactions/tracking/bulk', [TransactionController::class, 'bulkTrackOrders']);
+
+    Route::post('/payments/invoice', [PaymentController::class, 'createInvoice']);
 });
 
-Route::post('/biteship/callback', [TransactionController::class, 'biteshipCallback']);
 
-Route::middleware(['auth:sanctum', 'admin'])->prefix('admin/dashboard')->group(function () {
+// =========================================================================
+// PROTECTED ROUTES: ADMIN & STAFF AREA (RBAC APPLIED)
+// =========================================================================
+
+// GRUP A: Rute yang bisa diakses oleh HAMPIR SEMUA STAF (Admin, Gudang, Accounting)
+Route::middleware(['auth:sanctum', 'role:admin,gudang,accounting'])->prefix('admin')->group(function () {
+    Route::get('/', function (Request $request) {
+        return $request->user();
+    });
+    Route::post('/update-info', [AuthController::class, 'updateAdminProfileInfo']);
+    Route::post('/update-image', [AuthController::class, 'updateAdminImage']);
+    Route::post('/update-password', [AuthController::class, 'updateAdminPassword']);
+});
+
+// GRUP B: DASHBOARD ANALITIK (Hanya Admin)
+Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin/dashboard')->group(function () {
+    Route::get('/master-data', [DashboardController::class, 'getDashboardMasterData']);
+    // Endpoint lama jika masih dipakai
     Route::get('/stats', [DashboardController::class, 'getStats']);
     Route::get('/revenue-chart', [DashboardController::class, 'getRevenueChart']);
     Route::get('/popular-products', [DashboardController::class, 'getPopularProducts']);
-    Route::get('/predicted-bestsellers', [DashboardController::class,
-    'getPredictedBestsellers']);
+    Route::get('/predicted-bestsellers', [DashboardController::class, 'getPredictedBestsellers']);
     Route::get('/recent-activities', [DashboardController::class, 'getRecentActivities']);
     Route::get('/daily-average', [DashboardController::class, 'getAverageDailyRevenue']);
 });
 
-// Create Xendit Invoice (harus login)
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/payments/invoice', [PaymentController::class, 'createInvoice']);
+// GRUP C: MANAJEMEN KATEGORI & SISTEM (Hanya Admin)
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::get('/categories', [CategoryController::class, 'index']);
+    Route::post('/categories', [CategoryController::class, 'store']);
+    Route::put('/categories/{id}', [CategoryController::class, 'update']);
+    Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
+    Route::get('/categories/{id}', [CategoryController::class, 'show']);
+
+    Route::get('/admin/users', [AuthController::class, 'getAllUsers']);
+    Route::get('/admin/users/{id}', [AuthController::class, 'getUserDetail']);
+
+    Route::get('/admin/messages', [ContactController::class, 'getInboundMessages']);
+    Route::get('/admin/messages/{id}', [ContactController::class, 'showAdminMessage']);
+    Route::post('/admin/messages/{id}/respond', [ContactController::class, 'respondMessage']);
+
+    Route::get('/admin/subscribers', function () {
+        return response()->json(\App\Models\Subscriber::latest()->get());
+    });
 });
 
-// Xendit callback / webhook (tanpa auth)
-Route::post('/payments/callback', [PaymentController::class, 'callback']);
-Route::post('/shipping/rates', [PaymentController::class, 'getShippingRates']);
+// GRUP D: MANAJEMEN PRODUK KREASI & HAPUS (Hanya Admin)
+// *Note: View product terbuka public, tapi CRUD butuh admin
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::post('/products', [ProductController::class, 'store']);
+    Route::put('/products/{id}', [ProductController::class, 'update']);
+    Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+    Route::put('/products/{id}/restore', [ProductController::class, 'restore']);
+    Route::delete('/products/{id}/force', [ProductController::class, 'forceDelete']);
+    Route::post('/admin/s3/presign', [S3UploadController::class, 'presign']);
+});
 
-Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+// GRUP E: STOK & GUDANG (Admin & Gudang)
+Route::middleware(['auth:sanctum', 'role:admin,gudang'])->group(function () {
+    Route::get('/admin/product-stocks', [ProductStockController::class, 'index']);
+    Route::post('/admin/product-stocks/{productId}', [ProductStockController::class, 'store']);
+});
 
-    Route::get('/', function (Request $request) {
-        return $request->user();
-    });
+// GRUP F: TRANSAKSI & PENGIRIMAN (Admin & Gudang)
+Route::middleware(['auth:sanctum', 'role:admin,gudang'])->group(function () {
+    Route::get('/admin/transactions', [TransactionController::class, 'allTransactions']);
+    Route::get('/admin/transactions/{id}', [TransactionController::class, 'adminShow']);
+    Route::post('/admin/transactions/tracking/bulk', [TransactionController::class, 'adminBulkTrackOrders']);
+    Route::get('/admin/transactions/{id}/tracking', [TransactionController::class, 'adminTrackOrder']);
+    Route::get('/admin/transactions/{id}/print-label', [TransactionController::class, 'printLabel']);
+});
 
-    Route::get('/dashboard/master-data', [DashboardController::class, 'getDashboardMasterData']);
+// GRUP G: ACCOUNTING & KEUANGAN (Admin & Accounting)
+Route::middleware(['auth:sanctum', 'role:admin,accounting'])->prefix('admin')->group(function () {
+    Route::get('/sales-report', [TransactionController::class, 'salesReport']);
 
-    Route::post('/update-info', [AuthController::class, 'updateAdminProfileInfo']);
-    Route::post('/update-image', [AuthController::class, 'updateAdminImage']);
-    Route::post('/update-password', [AuthController::class, 'updateAdminPassword']);
-    Route::post('/transactions/tracking/bulk', [TransactionController::class, 'adminBulkTrackOrders']);
-    Route::get('/transactions/{id}/tracking', [TransactionController::class, 'adminTrackOrder']);
-    Route::get('/transactions/{id}/print-label', [TransactionController::class, 'printLabel']);
-    Route::post('/s3/presign', [S3UploadController::class, 'presign']);
+    // Approval Refund (Berurusan dengan uang keluar)
+    Route::post('/transactions/{id}/refund-approve', [TransactionController::class, 'approveRefund']);
+    Route::post('/transactions/{id}/refund-reject', [TransactionController::class, 'rejectRefund']);
 
-    // Accounting Routes
+    // Modul Accounting Khusus
     Route::apiResource('category-coas', CategoryCoaController::class);
     Route::apiResource('coas', CoaController::class);
     Route::post('coas/{id}/post', [CoaController::class, 'postCoa']);
-
     Route::apiResource('payments', TransferReceivePaymentController::class);
 
-    // Modul Accounting: Invoices & Suppliers
     Route::apiResource('suppliers', InvoiceController::class)->except(['create', 'edit', 'show']);
-    // Untuk routing kustom supplier
     Route::get('suppliers', [InvoiceController::class, 'indexSupplier']);
     Route::post('suppliers', [InvoiceController::class, 'storeSupplier']);
     Route::put('suppliers/{id}', [InvoiceController::class, 'updateSupplier']);
     Route::delete('suppliers/{id}', [InvoiceController::class, 'deleteSupplier']);
-
     Route::get('invoices', [InvoiceController::class, 'indexInvoice']);
     Route::post('invoices', [InvoiceController::class, 'storeInvoice']);
     Route::put('invoices/{id}', [InvoiceController::class, 'updateInvoice']);
     Route::post('invoices/{id}/pay', [InvoiceController::class, 'processPayment']);
     Route::delete('invoices/{id}', [InvoiceController::class, 'deleteInvoice']);
-
-    Route::get('subscribers', function () {
-        $subs = \App\Models\Subscriber::latest()->get();
-        return response()->json($subs);
-    });
 });
 
 
