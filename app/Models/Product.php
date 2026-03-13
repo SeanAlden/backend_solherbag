@@ -38,4 +38,9 @@ class Product extends Model
     {
         return $this->hasMany(TransactionDetail::class, 'product_id', 'id');
     }
+
+    public function stocks()
+    {
+        return $this->hasMany(ProductStock::class)->orderBy('created_at', 'asc'); // ASC untuk FIFO
+    }
 }

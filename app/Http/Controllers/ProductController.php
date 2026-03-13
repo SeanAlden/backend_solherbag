@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use Str;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use App\Models\ProductStock;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -34,9 +37,17 @@ class ProductController extends Controller
         return response()->json($products, 200);
     }
 
+    // public function show($id)
+    // {
+    //     return response()->json(Product::with('category')->findOrFail($id), 200);
+    // }
+
+    // Update fungsi show() agar memuat relasi stocks
     public function show($id)
     {
-        return response()->json(Product::with('category')->findOrFail($id), 200);
+        return response()->json(Product::with(['category', 'stocks' => function ($q) {
+            $q->orderBy('created_at', 'asc');
+        }])->findOrFail($id), 200);
     }
 
     // public function store(Request $request)
@@ -135,23 +146,42 @@ class ProductController extends Controller
         if ($validator->fails())
             return response()->json($validator->errors(), 422);
 
-        $product = Product::create($request->all());
+        // $product = Product::create($request->all());
 
-        // [BARU] BROADCAST KE SEMUA SUBSCRIBER AKTIF
-        // Catatan: Di production skala besar, gunakan Mail::to()->queue() agar web admin tidak loading lama.
-        $subscribers = \App\Models\Subscriber::where('is_active', true)->pluck('email');
+        DB::beginTransaction(); // Gunakan transaksi database
+        try {
+            $product = Product::create($request->all());
 
-        foreach ($subscribers as $email) {
-            try {
-                \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\NewProductAlertMail($product));
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Gagal broadcast produk ke $email: " . $e->getMessage());
-                // Lanjut ke email berikutnya jika 1 gagal
-                continue;
+            // [BARU] Buat batch stok pertama kali
+            if ($request->stock > 0) {
+                $batchCode = 'STK-' . now()->format('YmdHis') . '-' . strtoupper(Str::random(4));
+                ProductStock::create([
+                    'product_id' => $product->id,
+                    'batch_code' => $batchCode,
+                    'quantity' => $request->stock,
+                    'initial_quantity' => $request->stock
+                ]);
             }
-        }
+            // [BARU] BROADCAST KE SEMUA SUBSCRIBER AKTIF
+            // Catatan: Di production skala besar, gunakan Mail::to()->queue() agar web admin tidak loading lama.
+            $subscribers = \App\Models\Subscriber::where('is_active', true)->pluck('email');
 
-        return response()->json($product, 201);
+            foreach ($subscribers as $email) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\NewProductAlertMail($product));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Gagal broadcast produk ke $email: " . $e->getMessage());
+                    // Lanjut ke email berikutnya jika 1 gagal
+                    continue;
+                }
+            }
+
+            DB::commit();
+            return response()->json($product, 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
     }
 
     // public function update(Request $request, $id)
@@ -228,7 +258,7 @@ class ProductController extends Controller
             'name' => 'required',
             'category_id' => 'required|exists:categories,id',
             'price' => 'required|numeric',
-            'stock' => 'required|integer',
+            // 'stock' => 'required|integer',
 
             'image' => 'nullable|string',
             'variant_images' => 'nullable|array',
@@ -280,7 +310,11 @@ class ProductController extends Controller
             Storage::disk('s3')->delete($oldPath);
         }
 
-        $product->update($request->all());
+        // $product->update($request->all());
+
+        // [PERBAIKAN] Jangan biarkan 'stock' di-update dari halaman edit
+        $data = $request->except(['stock']);
+        $product->update($data);
 
         return response()->json($product, 200);
     }
