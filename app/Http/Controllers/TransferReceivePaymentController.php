@@ -12,12 +12,11 @@ class TransferReceivePaymentController extends Controller
 {
     public function index()
     {
-        // Ambil data beserta relasi COA-nya
         $payments = TransferReceivePayment::with(['kreditCoa', 'debitCoa'])
             ->orderBy('date', 'desc')
             ->latest()
             ->get();
-            
+
         return response()->json($payments);
     }
 
@@ -34,7 +33,7 @@ class TransferReceivePaymentController extends Controller
         ]);
 
         $data = $request->all();
-        
+
         // Generate No Transaction Otomatis (misal: PAY-20260227-XXXX)
         $prefix = $data['type'] === 'receive' ? 'RCV' : 'TRF';
         $data['no_transaction'] = $prefix . '-' . now()->format('Ymd') . '-' . strtoupper(Str::random(5));
@@ -59,8 +58,7 @@ class TransferReceivePaymentController extends Controller
         ]);
 
         $data = $request->all();
-        
-        // Update prefix no_transaction jika tipe berubah
+
         $prefix = $data['type'] === 'receive' ? 'RCV' : 'TRF';
         if (!str_starts_with($payment->no_transaction, $prefix)) {
             $data['no_transaction'] = $prefix . '-' . now()->format('Ymd') . '-' . strtoupper(Str::random(5));

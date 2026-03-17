@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 
 class WishlistController extends Controller
 {
-    // Mengambil daftar wishlist milik user yang sedang login
     public function index(Request $request)
     {
         $wishlists = Wishlist::with('product')
@@ -18,7 +17,6 @@ class WishlistController extends Controller
         return response()->json($wishlists);
     }
 
-    // Logika Toggle: Jika belum ada maka ditambahkan, jika sudah ada maka dihapus
     public function toggle(Request $request)
     {
         $request->validate([
