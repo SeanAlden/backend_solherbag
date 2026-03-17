@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\DB;
 
 class ProductStockController extends Controller
 {
-    // Mengambil semua produk beserta detail batch stoknya
     public function index()
     {
         $products = Product::with(['category', 'stocks' => function($q) {
@@ -20,7 +19,6 @@ class ProductStockController extends Controller
         return response()->json($products);
     }
 
-    // Menambah stok baru (Batch baru)
     public function store(Request $request, $productId)
     {
         $request->validate([
