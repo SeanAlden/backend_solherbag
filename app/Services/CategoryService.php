@@ -3,12 +3,12 @@
 namespace App\Services;
 
 use App\Models\Category;
-use Illuminate\Support\Facades\Cache;
+// use Illuminate\Support\Facades\Cache;
 
 class CategoryService
 {
 
-    protected $cacheKey = 'categories_all';
+    // protected $cacheKey = 'categories_all';
     /**
      * Create a new class instance.
      */
@@ -20,9 +20,11 @@ class CategoryService
     public function getAllCategories()
     {
         // Cache data selama 24 jam
-        return Cache::remember($this->cacheKey, now()->addDay(), function () {
-            return Category::latest()->get();
-        });
+        // return Cache::remember($this->cacheKey, now()->addDay(), function () {
+        //     return Category::latest()->get();
+        // });
+
+        return Category::latest()->get();
     }
 
     // [BARU] Fungsi untuk mengambil detail kategori berserta relasi products
@@ -34,14 +36,14 @@ class CategoryService
     public function createCategory(array $data)
     {
         $category = Category::create($data);
-        $this->clearCache();
+        // $this->clearCache();
         return $category;
     }
 
     public function updateCategory(Category $category, array $data)
     {
         $category->update($data);
-        $this->clearCache();
+        // $this->clearCache();
         return $category->fresh();
     }
 
@@ -62,12 +64,12 @@ class CategoryService
         }
 
         $category->delete();
-        $this->clearCache();
+        // $this->clearCache();
         return true;
     }
 
-    protected function clearCache()
-    {
-        Cache::forget($this->cacheKey);
-    }
+    // protected function clearCache()
+    // {
+    //     Cache::forget($this->cacheKey);
+    // }
 }

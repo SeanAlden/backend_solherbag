@@ -1808,7 +1808,7 @@ use App\Models\TransactionDetail;
 use App\Services\BiteshipService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
+// use Illuminate\Support\Facades\Cache;
 use Xendit\Invoice\CreateInvoiceRequest;
 
 class TransactionController extends Controller
@@ -2801,7 +2801,7 @@ class TransactionController extends Controller
             }
         });
 
-        Cache::tags(['catalog'])->flush();
+        // Cache::tags(['catalog'])->flush();
 
         return response()->json(['message' => 'Order cancelled successfully']);
     }
@@ -3301,7 +3301,7 @@ class TransactionController extends Controller
                 }
             });
 
-            Cache::tags(['catalog'])->flush();
+            // Cache::tags(['catalog'])->flush();
 
             return response()->json([
                 'message' => 'Refund processed successfully. Funds returned automatically.',
@@ -3318,7 +3318,7 @@ class TransactionController extends Controller
                     }
                 });
 
-                Cache::tags(['catalog'])->flush();
+                // Cache::tags(['catalog'])->flush();
                 return response()->json([
                     'message' => 'Automatic refund not supported. Status updated to Manual Check. Courier has been cancelled.',
                     'code' => 'MANUAL_REFUND_NEEDED'
