@@ -2532,7 +2532,7 @@ class TransactionController extends Controller
                 'status' => 'pending'
             ]);
 
-            Cache::tags(['catalog'])->flush();
+            // Cache::tags(['catalog'])->flush();
 
             return response()->json([
                 'checkout_url' => $invoice['invoice_url']
