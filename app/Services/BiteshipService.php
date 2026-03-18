@@ -392,7 +392,7 @@ class BiteshipService
             // --- INFO KURIR & JADWAL ---
             'courier_company' => $transaction->courier_company,
             'courier_type' => $transaction->courier_type,
-            'delivery_type' => $transaction->delivery_type ?? 'later',
+            'delivery_type' => $transaction->delivery_type ?? 'now',
 
             // Masukkan waktu yang sudah diformat di atas
             'delivery_date' => $fixedDate,
@@ -409,7 +409,7 @@ class BiteshipService
             ],
 
             // 'status' => 'allocated'
-            'status' => 'confirmed'
+            // 'status' => 'confirmed'
         ];
 
         // 5. Debugging Log (Cek di Laravel.log atau Vercel Logs)
