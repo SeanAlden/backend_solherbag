@@ -1,5 +1,7 @@
 <?php
 
+// Manajemen halaman utama, termasuk pencarian produk dan pengambilan produk berdasarkan kategori. Digunakan untuk Hero Image & Double Image.
+
 namespace App\Http\Controllers;
 
 use App\Models\Product;
