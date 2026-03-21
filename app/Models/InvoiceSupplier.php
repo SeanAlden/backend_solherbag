@@ -30,14 +30,10 @@ class InvoiceSupplier extends Model
         return $this->belongsTo(Coa::class, 'debit_coa_id');
     }
 
-    // Relasi untuk old_transfer_account_id
-
     public function oldAccount()
     {
         return $this->belongsTo(Coa::class, 'old_kredit_coa_id');
     }
-
-    // Relasi untuk new_transfer_account_id
 
     public function newAccount()
     {
