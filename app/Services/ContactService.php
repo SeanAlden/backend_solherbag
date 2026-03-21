@@ -12,7 +12,7 @@ class ContactService
      */
     public function __construct()
     {
-        //
+        
     }
 
     /**
