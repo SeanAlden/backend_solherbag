@@ -12,7 +12,7 @@ class ContactService
      */
     public function __construct()
     {
-        
+
     }
 
     /**
@@ -37,7 +37,6 @@ class ContactService
      */
     public function getMessagesForAdmin()
     {
-        // Menggunakan eager loading jika nanti ada relasi ke User
         return Contact::with('user')->latest()->paginate(15);
     }
 }
