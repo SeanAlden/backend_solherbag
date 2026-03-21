@@ -108,32 +108,6 @@ class C45Service
      * Memprediksi data baru berdasarkan model Tree yang sudah dibuat.
      * Mengembalikan array berisi [Label Prediksi, Array Path/Alasan]
      */
-    // public function predict(array $tree, array $item, array &$path = [])
-    // {
-    //     // Jika sudah mencapai Leaf Node (String)
-    //     if (!is_array($tree)) {
-    //         return ['label' => $tree, 'path' => $path];
-    //     }
-
-    //     // Ambil Node saat ini
-    //     $attribute = array_key_first($tree);
-
-    //     // Pastikan atribut ada di data item
-    //     $value = $item[$attribute] ?? null;
-
-    //     if ($value !== null && isset($tree[$attribute][$value])) {
-    //         $path[] = str_replace('_', ' ', ucfirst($attribute)) . " is " . $value;
-    //         return $this->predict($tree[$attribute][$value], $item, $path);
-    //     }
-
-    //     // Fallback jika data baru memiliki value yang tidak ada di data training
-    //     return ['label' => 'Unknown', 'path' => $path];
-    // }
-
-    /**
-     * Memprediksi data baru berdasarkan model Tree yang sudah dibuat.
-     * Mengembalikan array berisi [Label Prediksi, Array Path/Alasan]
-     */
     // [PERBAIKAN] Ubah "array $tree" menjadi "array|string $tree"
     public function predict(array|string $tree, array $item, array &$path = [])
     {
