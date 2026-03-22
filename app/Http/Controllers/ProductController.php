@@ -16,7 +16,7 @@ class ProductController extends Controller
     public function index()
     {
         $products = Product::with('category')
-            ->where('status', 'active') // Hanya yang aktif
+            ->where('status', 'active')
             ->latest()
             ->get();
         return response()->json($products, 200);
@@ -55,7 +55,7 @@ class ProductController extends Controller
         if ($validator->fails())
             return response()->json($validator->errors(), 422);
 
-        DB::beginTransaction(); // Gunakan transaksi database
+        DB::beginTransaction(); 
         try {
             $product = Product::create($request->all());
 
@@ -160,7 +160,7 @@ class ProductController extends Controller
 
         return response()->json($product, 200);
     }
-    
+
     public function destroy($id)
     {
         $product = Product::findOrFail($id);
