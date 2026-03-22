@@ -28,7 +28,6 @@ class ProductStockController extends Controller
         $product = Product::findOrFail($productId);
 
         DB::transaction(function () use ($request, $product) {
-            // Generate Kode: STK-YYYYMMDDHHMMSS-RANDOM
             $batchCode = 'STK-' . now()->format('YmdHis') . '-' . strtoupper(Str::random(4));
 
             ProductStock::create([
@@ -38,7 +37,6 @@ class ProductStockController extends Controller
                 'initial_quantity' => $request->quantity
             ]);
 
-            // Sync total stok di tabel produk utama
             $product->increment('stock', $request->quantity);
         });
 
