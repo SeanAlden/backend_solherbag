@@ -31,7 +31,6 @@ class ProductController extends Controller
         return response()->json($products, 200);
     }
 
-    // Update fungsi show() agar memuat relasi stocks
     public function show($id)
     {
         return response()->json(Product::with(['category', 'stocks' => function ($q) {
@@ -55,7 +54,7 @@ class ProductController extends Controller
         if ($validator->fails())
             return response()->json($validator->errors(), 422);
 
-        DB::beginTransaction(); 
+        DB::beginTransaction();
         try {
             $product = Product::create($request->all());
 
